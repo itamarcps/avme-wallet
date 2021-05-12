@@ -2,6 +2,19 @@
 
 Official wallet for the AVME Project.
 
+## Wallet structure
+
+* Top Folder - defaults to `%appdata%/AVME` on Windows, `~/.avme` on Linux
+  * `wallet` - folder with all the wallets
+    * `c-avax` - AVAX C-Chain wallet
+      * `wallet.info` - the proper wallet file
+      * `wallet.info.salt` - salt file for encrypting the wallet's contents
+      * `seed.json` - the wallet's encrypted BIP39 seed
+      * `tokens.json` - list of registered tokens in the wallet
+      * `accounts` - folder with all accounts that belong to the wallet
+        * `secrets` - folder with secrets to each of the accounts
+        * `transactions` - folder with all transactions made for each account
+
 ## Compiling
 
 ### Dependencies
