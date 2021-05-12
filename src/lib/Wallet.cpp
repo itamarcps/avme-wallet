@@ -19,7 +19,7 @@ bool Wallet::create(boost::filesystem::path folder, std::string pass) {
     Utils::walletFolderPath = folder;
     return true;
   } catch (Exception const& _e) {
-	Utils::logToDebug(std::string("Unable to create wallet: ") + boost::diagnostic_information(_e));
+    Utils::logToDebug(std::string("Unable to create wallet: ") + boost::diagnostic_information(_e));
     return false;
   }
 }
@@ -187,7 +187,7 @@ TransactionSkeleton Wallet::buildTransaction(
   // Support for EIP-155
   // TODO: change ChainID to mainnet
   txSkel.chainId = 43113;
-  
+
   return txSkel;
 }
 
@@ -201,7 +201,7 @@ std::string Wallet::signTransaction(TransactionSkeleton txSkel, std::string pass
     t.sign(s);
     txHexBuffer << toHex(t.rlp());
   } catch (Exception& ex) {
-	Utils::logToDebug(std::string("Invalid Transaction: ") + ex.what());
+    Utils::logToDebug(std::string("Invalid Transaction: ") + ex.what());
     return "";
   }
 

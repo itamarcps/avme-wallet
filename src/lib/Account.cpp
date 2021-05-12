@@ -192,7 +192,7 @@ bool Account::saveTxToHistory(TxData TxData) {
   // Error happens when trying to find the error.
   // If there is no "error" on the JSON, it will throw, meaning that it was successfull
   try {
-	Utils::logToDebug("Error happened when writing JSON file: " + success.get_obj().at("ERROR").get_str());
+    Utils::logToDebug("Error happened when writing JSON file: " + success.get_obj().at("ERROR").get_str());
   } catch (std::exception &e) {
     loadTxHistory();
     return true;
@@ -219,7 +219,7 @@ bool Account::updateAllTxStatus() {
       }
     }
   } catch (std::exception &e) {
-	Utils::logToDebug(std::string("Error when updating AllTxStatus: ") + e.what());
+    Utils::logToDebug(std::string("Error when updating AllTxStatus: ") + e.what());
   }
   json_spirit::mObject transactionsRoot;
   json_spirit::mArray transactionsArray = txDataToJSON();
@@ -228,7 +228,7 @@ bool Account::updateAllTxStatus() {
 
   try {
     std::string error = success.get_obj().at("ERROR").get_str();
-	Utils::logToDebug(std::string("Error happened when writing JSON file: ") + error);
+    Utils::logToDebug(std::string("Error happened when writing JSON file: ") + error);
   } catch (std::exception &e) {
     loadTxHistory();
     return true;
