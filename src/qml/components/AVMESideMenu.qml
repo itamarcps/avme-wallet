@@ -72,6 +72,23 @@ Rectangle {
     }
 
     AVMESideMenuItem {
+      id: itemTokens
+      icon: (itemSelection.y == y) ? "qrc:/img/icons/coinSelect.png" : "qrc:/img/icons/coin.png"
+      label: "Tokens"
+      area.onClicked: {
+        itemSelection.y = y
+        changeScreen("Tokens")
+      }
+    }
+
+    Rectangle {
+      anchors.horizontalCenter: parent.horizontalCenter
+      width: (parent.width - 10)
+      height: 1
+      color: "#4E525D"
+    }
+
+    AVMESideMenuItem {
       id: itemHistory
       icon: (itemSelection.y == y) ? "qrc:/img/icons/inboxesSelect.png" : "qrc:/img/icons/inboxes.png"
       label: "History"
