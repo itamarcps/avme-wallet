@@ -320,6 +320,61 @@ class System : public QObject {
       return this->w.accountExists(account.toStdString());
     }
 
+    // Get the token list from the Wallet
+    Q_INVOKABLE QVariantList getTokenList() {
+      QVariantList ret;
+      std::map<std::string, std::pair<std::string, int>> tokenList = this->w.getTokenList();
+      for (std::pair<std::string, std::pair<std::string, int>> token : tokenList) {
+        std::string obj;
+        std::string address = token.first;
+        std::string symbol = token.second.first;
+        int decimals = token.second.second;
+        std::string image;
+        if (symbol == "AVME") {
+          image = "qrc:/img/avme_logo.png";
+        } else {
+          #ifdef __MINGW32__
+            image = "file:///";
+          #else
+            image = "file://";
+          #endif
+          image += Utils::walletFolderPath.string() + "/wallet/c-avax/tokens/" + symbol + ".png";
+        }
+        obj += "{\"address\": \"" + address;
+        obj += "\", \"symbol\": \"" + symbol;
+        obj += "\", \"decimals\": " + std::to_string(decimals);
+        obj += ", \"image\": \"" + image;
+        obj += "\"}";
+        ret << QString::fromStdString(obj);
+      }
+      return ret;
+    }
+
+    // Add/remove a token to/from the list, respectively.
+    // TODO: get icons that are not in repo (e.g. VSO)
+    // TODO: prevent adding icons that already exist in the list
+    Q_INVOKABLE bool addTokenToList(QString address) {
+      std::string addressStr = address.toStdString();
+      std::transform(addressStr.begin(), addressStr.end(), addressStr.begin(), ::tolower);
+      std::pair<std::string, int> tokenData = Graph::getTokenData(addressStr);
+      if (tokenData.first.empty()) { return false; }
+      boost::filesystem::path iconPath = Utils::walletFolderPath.string()
+        + "/wallet/c-avax/tokens/" + tokenData.first + ".png";
+      if (!exists(iconPath)) {
+        API::httpGetFile(
+          "raw.githubusercontent.com",
+          "/ava-labs/bridge-tokens/main/avalanche-tokens/" +
+            Utils::toChecksumAddress(addressStr) + "/logo.png",
+          iconPath.string()
+        );
+      }
+      return this->w.addTokenToList(addressStr, tokenData.first, tokenData.second);
+    }
+
+    Q_INVOKABLE bool removeTokenFromList(QString address) {
+      return this->w.removeTokenFromList(address.toStdString());
+    }
+
     // List the Account's transactions, updating their statuses on the spot if required
     Q_INVOKABLE void listAccountTransactions(QString address) {
       QtConcurrent::run([=](){

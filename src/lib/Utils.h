@@ -4,7 +4,9 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <algorithm>
 #include <chrono>
+#include <locale> // std::toupper
 #include <string>
 
 #include <boost/chrono.hpp>
@@ -72,18 +74,23 @@ namespace Utils {
    * Returns a struct with the transaction's data.
    */
   TxData decodeRawTransaction(std::string rawTxHex);
-  
-  
+
   /**
-	* Write information to debug file for further debugging
-	*/
+   * Convert an address to its checksum format (mixed case).
+   * Returns the checksum address.
+   * Adapted from https://eips.ethereum.org/EIPS/eip-55
+   */
+  std::string toChecksumAddress(std::string address);
+
+  /**
+   * Write information to debug file for further debugging.
+   */
   extern std::mutex debugFileLock;
   void logToDebug(std::string debug);
-  
-  
+
   /**
-	* Create an random 16 bytes HEX for usage in identification.
-	*/
+   * Create a random 16 bytes HEX for usage in identification.
+   */
   std::string randomHexBytes();
 
   /**

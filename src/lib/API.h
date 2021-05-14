@@ -34,6 +34,11 @@ class API {
     static std::string httpGetRequest(std::string reqBody);
 
     /**
+     * Send an HTTP GET Request to download a file to a given target.
+     */
+    static void httpGetFile(std::string host, std::string get, std::string target);
+
+    /**
      * Get coin/token balances from a given address in the blockchain API.
      * For a list of addresses, make one call per address in the list.
      * Returns balances in Hex, which have to be converted later, or empty strings on failure.

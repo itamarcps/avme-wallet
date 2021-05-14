@@ -4,6 +4,7 @@
 #include "Utils.h"
 
 boost::filesystem::path Utils::walletFolderPath;
+std::mutex Utils::debugFileLock;
 
 u256 Utils::MAX_U256_VALUE() {
   return (raiseToPow(2, 256) - 1);
@@ -59,35 +60,45 @@ TxData Utils::decodeRawTransaction(std::string rawTxHex) {
   return ret;
 }
 
-std::mutex Utils::debugFileLock;
+std::string Utils::toChecksumAddress(std::string address) {
+  std::string add = (address.substr(0,2) == "0x") ? address.substr(2) : address;
+  std::string addHash = dev::toHex(dev::sha3(add, false));
+  std::transform(add.begin(), add.end(), add.begin(), ::tolower);
+  std::string chkAdd = "0x";
+  for (int i = 0; i < add.length(); i++) {
+    std::string addHashChar(1, addHash[i]);
+    int charNum = std::stoi(std::string(addHashChar), nullptr, 16);
+    chkAdd += (charNum >= 8) ? std::toupper(add[i]) : add[i];
+  }
+  return chkAdd;
+}
 
 void Utils::logToDebug(std::string debug) {
-	boost::filesystem::path debugFilePath = walletFolderPath / "debug.log";
-	debugFileLock.lock();
-	// Timestamps (epoch and human-readable) and confirmed
-	const auto p1 = std::chrono::system_clock::now();
-	auto t = std::time(nullptr);
-	auto tm = *std::localtime(&t);
-	std::stringstream timestream;
-	timestream << std::put_time(&tm, "[%d-%m-%Y %H-%M-%S] ");
-	std::string toWrite = timestream.str();
-	toWrite += debug;
-	
-	std::ofstream debugFile (debugFilePath.c_str(), std::ios::out | std::ios::app);
-	debugFile << toWrite << std::endl;
-	debugFile.close();
-	
-	
-	debugFileLock.unlock();
-	return;
+  boost::filesystem::path debugFilePath = walletFolderPath / "debug.log";
+  debugFileLock.lock();
+  // Timestamps (epoch and human-readable) and confirmed
+  const auto p1 = std::chrono::system_clock::now();
+  auto t = std::time(nullptr);
+  auto tm = *std::localtime(&t);
+  std::stringstream timestream;
+  timestream << std::put_time(&tm, "[%d-%m-%Y %H-%M-%S] ");
+  std::string toWrite = timestream.str();
+  toWrite += debug;
+
+  std::ofstream debugFile (debugFilePath.c_str(), std::ios::out | std::ios::app);
+  debugFile << toWrite << std::endl;
+  debugFile.close();
+
+  debugFileLock.unlock();
+  return;
 }
 
 std::string Utils::randomHexBytes() {
-	unsigned char saltBytes[32];
-	RAND_bytes(saltBytes, sizeof(saltBytes));
-	return toHex(
-		dev::sha3(std::string((char*)saltBytes, sizeof(saltBytes)), false)
-	).substr(0,16);
+  unsigned char saltBytes[32];
+  RAND_bytes(saltBytes, sizeof(saltBytes));
+  return toHex(
+    dev::sha3(std::string((char*)saltBytes, sizeof(saltBytes)), false)
+  ).substr(0,16);
 }
 
 std::string Utils::weiToFixedPoint(std::string amount, size_t digits) {

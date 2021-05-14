@@ -37,6 +37,13 @@ class Graph {
      */
     static std::string httpGetRequest(std::string reqBody);
 
+    /**
+     * Get data from a given token.
+     * Returns a string/int pair with the token symbol and its decimals, or
+     * an empty map if the token doesn't exist.
+     */
+    static std::pair<std::string, int> getTokenData(std::string address);
+
     // TODO: move hardcoded addresses to Pangolin.cpp when changing to mainnet
     // Those are all mainnet addresses:
     // WAVAX-USDT Pair: 0x9ee0a4e21bd333a6bb2ab298194320b8daa26516

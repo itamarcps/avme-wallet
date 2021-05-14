@@ -11,6 +11,16 @@ import "qrc:/qml/components"
 Item {
   id: tokensScreen
 
+  Component.onCompleted: reloadTokenList()
+
+  function reloadTokenList() {
+    tokenList.clear()
+    var tokens = System.getTokenList()
+    for (var i = 0; i < tokens.length; i++) {
+      tokenList.append(JSON.parse(tokens[i]))
+    }
+  }
+
   AVMEAccountHeader {
     id: accountHeader
   }
@@ -48,59 +58,7 @@ Item {
         margins: 20
       }
       width: 9 * tokenGrid.cellWidth
-      model: ListModel {
-        id: tokenList
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME2" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME3" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME4" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME5" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME6" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME7" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME8" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME9" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME10" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME11" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME12" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME13" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME14" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME15" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME16" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME17" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME18" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME19" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME20" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME21" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME22" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME23" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME24" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME25" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME26" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME27" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME28" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME29" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME30" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME31" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME32" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME33" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME34" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME35" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME36" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME37" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME38" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME39" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME40" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME41" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME42" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME43" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME44" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME45" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME46" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME47" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME48" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME49" }
-        ListElement { image: "qrc:/img/avme_logo.png"; label: "AVME50" }
-      }
+      model: ListModel { id: tokenList }
     }
 
     Row {
@@ -116,18 +74,79 @@ Item {
         id: btnAdd
         width: tokensPanel.width * 0.25
         text: "Add a new token"
+        onClicked: addTokenPopup.open()
       }
       AVMEButton {
         id: btnSelect
         width: tokensPanel.width * 0.25
         text: "Select this token"
+        // TODO: onClicked
       }
       AVMEButton {
         id: btnRemove
         width: tokensPanel.width * 0.25
-        enabled: (tokenGrid.currentItem.itemLabel != "AVME")
+        enabled: (tokenGrid.currentItem && tokenGrid.currentItem.itemSymbol != "AVME")
         text: "Remove this token"
+        onClicked: removeTokenPopup.open()
       }
+    }
+  }
+
+  // Popup for adding a new token
+  AVMEPopupYesNo {
+    id: addTokenPopup
+    property bool addFail: false
+    height: window.height * 0.35
+    info: (!addFail)
+    ? "Enter the new token's address."
+    : "Token not found or couldn't be added,<br>please try another or check the formatting."
+    yesBtn.text: "Add"
+    noBtn.text: "Back"
+    yesBtn.enabled: (tokenAddressInput.acceptableInput)
+
+    AVMEInput {
+      id: tokenAddressInput
+      width: parent.width * 0.9
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.verticalCenter: parent.verticalCenter
+      validator: RegExpValidator { regExp: /0x[0-9a-fA-F]{40}/ }
+      label: "Token address"
+      placeholder: "e.g. 0x123456789ABCDEF..."
+    }
+
+    yesBtn.onClicked: {
+      if (System.addTokenToList(tokenAddressInput.text)) {
+        addFail = false
+        reloadTokenList()
+        tokenAddressInput.text = ""
+        addTokenPopup.close()
+      } else {
+        addFail = true
+      }
+    }
+    noBtn.onClicked: {
+      tokenAddressInput.text = ""
+      addFail = false
+      addTokenPopup.close()
+    }
+  }
+
+  // Popup for removing a token
+  AVMEPopupYesNo {
+    id: removeTokenPopup
+    height: window.height * 0.35
+    icon: "qrc:/img/warn.png"
+    info: "Are you sure you want to remove this token from the list?"
+    + "<br>Your balance will remain intact, but you'll have to"
+    + "<br>add the token again to access it."
+    yesBtn.onClicked: {
+      if (System.removeTokenFromList(tokenGrid.currentItem.itemAddress)) {
+        reloadTokenList()
+      }
+      removeTokenPopup.close()
+    }
+    noBtn.onClicked: {
+      removeTokenPopup.close()
     }
   }
 }

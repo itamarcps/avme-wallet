@@ -158,6 +158,97 @@ Secret Wallet::getSecret(std::string const& address, std::string pass) {
   }
 }
 
+std::map<std::string, std::pair<std::string, int>> Wallet::getTokenList() {
+  std::map<std::string, std::pair<std::string, int>> ret;
+  boost::filesystem::path tokenFilePath = Utils::walletFolderPath.string()
+    + "/wallet/c-avax/tokens/tokens.json";
+  if (!exists(tokenFilePath.parent_path()) || !exists(tokenFilePath)) {
+    create_directories(tokenFilePath.parent_path());
+    json_spirit::mObject tokenRoot, defaultToken;
+    json_spirit::mArray tokenArray;
+    defaultToken["address"] = Pangolin::tokenContracts["AVME"];
+    defaultToken["symbol"] = "AVME";
+    defaultToken["decimals"] = 18;
+    tokenArray.push_back(defaultToken);
+    tokenRoot["tokens"] = tokenArray;
+    json_spirit::mValue success = JSON::writeFile(tokenRoot, tokenFilePath);
+  }
+
+  json_spirit::mValue tokenData = JSON::readFile(tokenFilePath);
+  try {
+    json_spirit::mValue tokenArray = JSON::objectItem(tokenData, "tokens");
+    for (int i = 0; i < tokenArray.get_array().size(); ++i) {
+      std::string address = JSON::objectItem(JSON::arrayItem(tokenArray, i), "address").get_str();
+      std::string symbol = JSON::objectItem(JSON::arrayItem(tokenArray, i), "symbol").get_str();
+      int decimals = JSON::objectItem(JSON::arrayItem(tokenArray, i), "decimals").get_int();
+      ret.insert(std::make_pair(address, std::make_pair(symbol, decimals)));
+    }
+  } catch (std::exception &e) {
+    Utils::logToDebug(std::string("Couldn't load token list from Wallet: ")
+      + JSON::objectItem(tokenData, "ERROR").get_str());
+    // Uncomment to see output
+    //std::cout << "Couldn't load token list from Wallet: "
+    //  << JSON::objectItem(tokenData, "ERROR").get_str() << std::endl;
+  }
+
+  return ret;
+}
+
+bool Wallet::addTokenToList(std::string address, std::string symbol, int decimals) {
+  boost::filesystem::path tokenFilePath = Utils::walletFolderPath.string()
+    + "/wallet/c-avax/tokens/tokens.json";
+  json_spirit::mObject tokenRoot, newToken;
+  json_spirit::mArray tokenArray;
+  json_spirit::mValue tokenData = JSON::readFile(tokenFilePath);
+
+  tokenArray = JSON::objectItem(tokenData, "tokens").get_array();
+  newToken["address"] = address;
+  newToken["symbol"] = symbol;
+  newToken["decimals"] = decimals;
+  tokenArray.push_back(newToken);
+  tokenRoot["tokens"] = tokenArray;
+  json_spirit::mValue success = JSON::writeFile(tokenRoot, tokenFilePath);
+
+  // Try/Catch is "inverted", in the sense that we search for the error itself and,
+  // if that fails, it means there's no "error" on the JSON, so it will throw,
+  // meaning that it was successful
+  try {
+    Utils::logToDebug("Error happened when writing JSON file: " + success.get_obj().at("ERROR").get_str());
+  } catch (std::exception &e) {
+    return true;
+  }
+  return false;
+}
+
+bool Wallet::removeTokenFromList(std::string address) {
+  boost::filesystem::path tokenFilePath = Utils::walletFolderPath.string()
+    + "/wallet/c-avax/tokens/tokens.json";
+  json_spirit::mObject tokenRoot;
+  json_spirit::mArray tokenArray;
+  json_spirit::mValue tokenData = JSON::readFile(tokenFilePath);
+
+  tokenArray = JSON::objectItem(tokenData, "tokens").get_array();
+  for (int i = 0; i < tokenArray.size(); ++i) {
+    std::string arrayAddress = JSON::objectItem(JSON::arrayItem(tokenArray, i), "address").get_str();
+    if (arrayAddress == address) {
+      tokenArray.erase(tokenArray.begin() + i);
+      tokenRoot["tokens"] = tokenArray;
+      json_spirit::mValue success = JSON::writeFile(tokenRoot, tokenFilePath);
+
+      // Try/Catch is "inverted", in the sense that we search for the error itself and,
+      // if that fails, it means there's no "error" on the JSON, so it will throw,
+      // meaning that it was successful
+      try {
+        Utils::logToDebug("Error happened when writing JSON file: " + success.get_obj().at("ERROR").get_str());
+      } catch (std::exception &e) {
+        return true;
+      }
+      return false;
+    }
+  }
+  return false;
+}
+
 TransactionSkeleton Wallet::buildTransaction(
   std::string from, std::string to, std::string value,
   std::string gasLimit, std::string gasPrice, std::string dataHex

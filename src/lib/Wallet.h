@@ -130,6 +130,21 @@ class Wallet {
     Secret getSecret(std::string const& account, std::string pass);
 
     /**
+     * Get the list of registered tokens for the Wallet.
+     * Creates the list beforehand if it doesn't already exist.
+     * Returns a map with the tokens' addresses and a pair with their symbols and decimals,
+     * or an empty map on failure.
+     */
+    std::map<std::string, std::pair<std::string, int>> getTokenList();
+
+    /**
+     * Add/remove a token to/from the list, respectively.
+     * Returns true on success, false on failure.
+     */
+    bool addTokenToList(std::string address, std::string symbol, int decimals);
+    bool removeTokenFromList(std::string address);
+
+    /**
      * Build a transaction from user data.
      * Coin transactions would have a blank dataHex and the "to" address
      * being the destination address.

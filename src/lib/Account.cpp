@@ -188,9 +188,9 @@ bool Account::saveTxToHistory(TxData TxData) {
   transactionsRoot["transactions"] = transactionsArray;
   json_spirit::mValue success = JSON::writeFile(transactionsRoot, txFilePath);
 
-  // Try/Catch are "inverted"
-  // Error happens when trying to find the error.
-  // If there is no "error" on the JSON, it will throw, meaning that it was successfull
+  // Try/Catch is "inverted", in the sense that we search for the error itself and,
+  // if that fails, it means there's no "error" on the JSON, so it will throw,
+  // meaning that it was successful
   try {
     Utils::logToDebug("Error happened when writing JSON file: " + success.get_obj().at("ERROR").get_str());
   } catch (std::exception &e) {

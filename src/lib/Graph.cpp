@@ -79,6 +79,24 @@ std::string Graph::httpGetRequest(std::string reqBody) {
   return result;
 }
 
+std::pair<std::string, int> Graph::getTokenData(std::string address) {
+  std::pair<std::string, int> ret;
+  std::stringstream query;
+  query << "{\"query\": \"{"
+        << "token(id: \\\"" << address << "\\\"){symbol decimals}"
+        << "}\"}";
+  std::string resp = httpGetRequest(query.str());
+  try {
+    std::string symbol = JSON::getString(resp, "data/token/symbol", "/");
+    int decimals = std::stoi(JSON::getString(resp, "data/token/decimals", "/"));
+    ret = std::make_pair(symbol, decimals);
+  } catch (std::exception &e) {
+    Utils::logToDebug("Error when fetching token data for address " + address + ": " + e.what());
+    ret = std::make_pair("", 0);
+  }
+  return ret;
+}
+
 /**
  * Prices are inverted, taking the WAVAX-USDT pair as an example:
  * - If token0 is WAVAX, token1Price is 1 WAVAX price in USDT

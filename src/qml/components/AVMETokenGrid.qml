@@ -26,11 +26,13 @@ GridView {
   cellHeight: 120
 
   delegate: Component {
-    id: gridComponent
+    id: gridDelegate
     Item {
       id: gridItem
+      readonly property string itemAddress: address
+      readonly property string itemSymbol: symbol
+      readonly property int itemDecimals: decimals
       readonly property string itemImage: image
-      readonly property string itemLabel: label
       width: tokenGrid.cellWidth - 10
       height: tokenGrid.cellHeight - 10
       Rectangle { id: gridItemBg; anchors.fill: parent; radius: 5; color: "transparent" }
@@ -40,13 +42,15 @@ GridView {
         Image {
           width: 64
           height: 64
+          antialiasing: true
+          smooth: true
           source: itemImage
           anchors.horizontalCenter: parent.horizontalCenter
         }
         Text {
           color: "#FFFFFF"
           font.pixelSize: 18.0
-          text: itemLabel
+          text: itemSymbol
           anchors.horizontalCenter: parent.horizontalCenter
         }
       }

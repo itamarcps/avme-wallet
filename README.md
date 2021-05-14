@@ -10,10 +10,11 @@ Official wallet for the AVME Project.
       * `wallet.info` - the proper wallet file
       * `wallet.info.salt` - salt file for encrypting the wallet's contents
       * `seed.json` - the wallet's encrypted BIP39 seed
-      * `tokens.json` - list of registered tokens in the wallet
       * `accounts` - folder with all accounts that belong to the wallet
         * `secrets` - folder with secrets to each of the accounts
         * `transactions` - folder with all transactions made for each account
+      * `tokens` - folder for token icons and info
+        * `tokens.json` - list of registered tokens in the wallet
 
 ## Compiling
 
