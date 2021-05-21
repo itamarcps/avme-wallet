@@ -379,8 +379,16 @@ Item {
           id: loadFolderDialogBtn
           width: 40
           height: loadFolderInput.height
-          text: "..."
+          text: ""
           onClicked: loadFolderDialog.visible = true
+          Image {
+            anchors.fill: parent
+            anchors.margins: 10
+            source: "qrc:/img/icons/folder.png"
+            antialiasing: true
+            smooth: true
+            fillMode: Image.PreserveAspectFit
+          }
         }
         FolderDialog {
           id: loadFolderDialog

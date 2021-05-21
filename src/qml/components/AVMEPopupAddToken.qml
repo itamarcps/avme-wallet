@@ -17,7 +17,7 @@ Popup {
   }
 
   width: (parent.width * 0.5)
-  height: (parent.height * 0.5)
+  height: (parent.height * 0.4)
   x: (parent.width * 0.5) - (width / 2)
   y: (parent.height * 0.5) - (height / 2)
   modal: true
@@ -77,23 +77,26 @@ Popup {
       placeholder: "e.g. 0x123456789ABCDEF..."
     }
 
-    AVMEInput {
-      id: tokenSymbolInput
-      width: parent.width
-      readOnly: (tokenDataFound)
+    Row {
       anchors.horizontalCenter: parent.horizontalCenter
-      visible: (tokenFound)
-      label: "Token symbol"
-    }
+      spacing: 10
 
-    AVMEInput {
-      id: tokenDecimalsInput
-      width: parent.width
-      readOnly: (tokenDataFound)
-      anchors.horizontalCenter: parent.horizontalCenter
-      visible: (tokenFound)
-      validator: RegExpValidator { regExp: /[0-9]{1,}/ }
-      label: "Token decimals"
+      AVMEInput {
+        id: tokenSymbolInput
+        width: inputCol.width * 0.4
+        readOnly: (tokenDataFound)
+        visible: (tokenFound)
+        label: "Token symbol"
+      }
+
+      AVMEInput {
+        id: tokenDecimalsInput
+        width: inputCol.width * 0.4
+        readOnly: (tokenDataFound)
+        visible: (tokenFound)
+        validator: RegExpValidator { regExp: /[0-9]{1,}/ }
+        label: "Token decimals"
+      }
     }
   }
 

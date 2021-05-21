@@ -350,7 +350,7 @@ Item {
         text: "Ignore price impact"
         contentItem: Text {
           text: parent.text
-          font.pointSize: 14.0
+          font.pixelSize: 14.0
           color: parent.checked ? "#FFFFFF" : "#888888"
           verticalAlignment: Text.AlignVCenter
           leftPadding: parent.indicator.width + parent.spacing
