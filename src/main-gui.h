@@ -323,22 +323,22 @@ class System : public QObject {
     // Get the token list from the Wallet
     Q_INVOKABLE QVariantList getTokenList() {
       QVariantList ret;
-      std::map<std::string, std::pair<std::string, int>> tokenList = this->w.getTokenList();
-      for (std::pair<std::string, std::pair<std::string, int>> token : tokenList) {
+      std::vector<std::tuple<std::string, std::string, int, std::string>> tokenList;
+      tokenList = this->w.getTokenList();
+      for (std::tuple<std::string, std::string, int, std::string> token : tokenList) {
         std::string obj;
-        std::string address = token.first;
-        std::string symbol = token.second.first;
-        int decimals = token.second.second;
-        std::string image;
+        std::string address, symbol, image;
+        int decimals;
+        std::tie(address, symbol, decimals, image) = token;
+        // TODO: placeholder img
         if (symbol == "AVME") {
           image = "qrc:/img/avme_logo.png";
-        } else {
+        } else if (!image.empty()) {
           #ifdef __MINGW32__
-            image = "file:///";
+            image.insert(0, "file:///");
           #else
-            image = "file://";
+            image.insert(0, "file://");
           #endif
-          image += Utils::walletFolderPath.string() + "/wallet/c-avax/tokens/" + symbol + ".png";
         }
         obj += "{\"address\": \"" + address;
         obj += "\", \"symbol\": \"" + symbol;
@@ -350,13 +350,32 @@ class System : public QObject {
       return ret;
     }
 
+    // Check if a token exists in the blockchain
+    Q_INVOKABLE bool isERC20Token(QString address) {
+      std::string addressStr = address.toStdString();
+      std::transform(addressStr.begin(), addressStr.end(), addressStr.begin(), ::tolower);
+      return API::isERC20Token(addressStr);
+    }
+
+    // Get a token's data
+    Q_INVOKABLE QVariantMap getERC20TokenData(QString address) {
+      QVariantMap ret;
+      std::string addressStr = address.toStdString();
+      std::transform(addressStr.begin(), addressStr.end(), addressStr.begin(), ::tolower);
+      std::pair<std::string, int> data = API::getERC20TokenData(addressStr);
+      if (!data.first.empty()) {
+        ret.insert("symbol", QString::fromStdString(data.first));
+        ret.insert("decimals", QString::number(data.second));
+      }
+      return ret;
+    }
+
     // Add/remove a token to/from the list, respectively.
     // TODO: get icons that are not in repo (e.g. VSO)
-    // TODO: prevent adding icons that already exist in the list
     Q_INVOKABLE bool addTokenToList(QString address) {
       std::string addressStr = address.toStdString();
       std::transform(addressStr.begin(), addressStr.end(), addressStr.begin(), ::tolower);
-      std::pair<std::string, int> tokenData = Graph::getTokenData(addressStr);
+      std::pair<std::string, int> tokenData = API::getERC20TokenData(addressStr);
       if (tokenData.first.empty()) { return false; }
       boost::filesystem::path iconPath = Utils::walletFolderPath.string()
         + "/wallet/c-avax/tokens/" + tokenData.first + ".png";
@@ -372,7 +391,16 @@ class System : public QObject {
     }
 
     Q_INVOKABLE bool removeTokenFromList(QString address) {
-      return this->w.removeTokenFromList(address.toStdString());
+      std::string addressStr = address.toStdString();
+      std::transform(addressStr.begin(), addressStr.end(), addressStr.begin(), ::tolower);
+      return this->w.removeTokenFromList(addressStr);
+    }
+
+    // Check if token was already added to the Wallet
+    Q_INVOKABLE bool tokenIsAdded(QString address) {
+      std::string addressStr = address.toStdString();
+      std::transform(addressStr.begin(), addressStr.end(), addressStr.begin(), ::tolower);
+      return this->w.tokenIsAdded(addressStr);
     }
 
     // List the Account's transactions, updating their statuses on the spot if required

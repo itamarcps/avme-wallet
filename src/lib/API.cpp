@@ -124,6 +124,7 @@ void API::httpGetFile(std::string host, std::string get, std::string target) {
   response_stream >> http_version;
   unsigned int status_code;
   response_stream >> status_code;
+  if (status_code == 404) { return; } // Abort if file is not found
   std::string status_message;
   std::getline(response_stream, status_message);
   //std::cout << host << get << std::endl;
@@ -144,6 +145,49 @@ void API::httpGetFile(std::string host, std::string get, std::string target) {
     outFile << &response;
   }
   outFile.close();
+}
+
+bool API::isERC20Token(std::string address) {
+  std::stringstream supplyQuery, balanceQuery;
+  supplyQuery << "{\"id\": 1,\"jsonrpc\": \"2.0\",\"method\": \"eth_call\",\"params\": [{\"to\": \""
+              << address
+              << "\",\"data\": \"" << Pangolin::ERC20Funcs["totalSupply"]
+              << "\"},\"latest\"]}";
+  balanceQuery << "{\"id\": 1,\"jsonrpc\": \"2.0\",\"method\": \"eth_call\",\"params\": [{\"to\": \""
+               << address
+               << "\",\"data\": \"" << Pangolin::ERC20Funcs["balanceOf"]
+               << Utils::addressToHex(address)
+               << "\"},\"latest\"]}";
+  std::string supplyResp = httpGetRequest(supplyQuery.str());
+  std::string balanceResp = httpGetRequest(balanceQuery.str());
+  std::string supplyStr = JSON::getString(supplyResp, "result");
+  std::string balanceStr = JSON::getString(balanceResp, "result");
+  if (supplyStr == "0x" || supplyStr == "") { return false; }
+  if (balanceStr == "0x" || balanceStr == "") { return false; }
+  return true;
+}
+
+std::pair<std::string, int> API::getERC20TokenData(std::string address) {
+  std::stringstream symbolQuery, decimalsQuery;
+  std::pair<std::string, int> ret;
+  symbolQuery << "{\"id\": 1,\"jsonrpc\": \"2.0\",\"method\": \"eth_call\",\"params\": [{\"to\": \""
+              << address
+              << "\",\"data\": \"" << Pangolin::ERC20Funcs["symbol"]
+              << "\"},\"latest\"]}";
+  decimalsQuery << "{\"id\": 1,\"jsonrpc\": \"2.0\",\"method\": \"eth_call\",\"params\": [{\"to\": \""
+                << address
+                << "\",\"data\": \"" << Pangolin::ERC20Funcs["decimals"]
+                << "\"},\"latest\"]}";
+  std::string symbolResp = httpGetRequest(symbolQuery.str());
+  std::string decimalsResp = httpGetRequest(decimalsQuery.str());
+  std::string symbolHexStr = JSON::getString(symbolResp, "result");
+  std::string decimalsHexStr = JSON::getString(decimalsResp, "result");
+  if (symbolHexStr == "0x" || symbolHexStr == "") { return ret; }
+  if (decimalsHexStr == "0x" || decimalsHexStr == "") { return ret; }
+  std::string symbol = Utils::stringFromHex(symbolHexStr);
+  int decimals = boost::lexical_cast<HexTo<int>>(decimalsHexStr);
+  ret = std::make_pair(symbol, decimals);
+  return ret;
 }
 
 std::string API::getAVAXBalance(std::string address) {

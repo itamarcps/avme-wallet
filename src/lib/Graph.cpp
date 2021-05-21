@@ -79,8 +79,8 @@ std::string Graph::httpGetRequest(std::string reqBody) {
   return result;
 }
 
-std::pair<std::string, int> Graph::getTokenData(std::string address) {
-  std::pair<std::string, int> ret;
+bool Graph::isTokenTradeable(std::string address) {
+  bool ret;
   std::stringstream query;
   query << "{\"query\": \"{"
         << "token(id: \\\"" << address << "\\\"){symbol decimals}"
@@ -88,11 +88,9 @@ std::pair<std::string, int> Graph::getTokenData(std::string address) {
   std::string resp = httpGetRequest(query.str());
   try {
     std::string symbol = JSON::getString(resp, "data/token/symbol", "/");
-    int decimals = std::stoi(JSON::getString(resp, "data/token/decimals", "/"));
-    ret = std::make_pair(symbol, decimals);
+    if (!symbol.empty()) { ret = true; };
   } catch (std::exception &e) {
-    Utils::logToDebug("Error when fetching token data for address " + address + ": " + e.what());
-    ret = std::make_pair("", 0);
+    ret = false;
   }
   return ret;
 }

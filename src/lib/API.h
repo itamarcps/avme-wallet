@@ -15,6 +15,7 @@
 #include <boost/beast/version.hpp>
 
 #include "JSON.h"
+#include "Pangolin.h"
 #include "root_certificates.hpp"
 
 // Class for API/ethcall-related functions (e.g. requesting data from the blockchain API).
@@ -37,6 +38,18 @@ class API {
      * Send an HTTP GET Request to download a file to a given target.
      */
     static void httpGetFile(std::string host, std::string get, std::string target);
+
+    /**
+     * Check if a token exists in the blockchain.
+     * Returns true on success, false on failure.
+     */
+    static bool isERC20Token(std::string address);
+
+    /**
+     * Get an ERC20 token's symbol and decimals, if they exist.
+     * Returns a string/int pair, or an empty pair on failure.
+     */
+    static std::pair<std::string, int> getERC20TokenData(std::string address);
 
     /**
      * Get coin/token balances from a given address in the blockchain API.

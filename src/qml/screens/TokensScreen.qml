@@ -85,6 +85,7 @@ Item {
       AVMEButton {
         id: btnRemove
         width: tokensPanel.width * 0.25
+        // TODO: check against itemAddress instead of itemSymbol
         enabled: (tokenGrid.currentItem && tokenGrid.currentItem.itemSymbol != "AVME")
         text: "Remove this token"
         onClicked: removeTokenPopup.open()
@@ -93,42 +94,8 @@ Item {
   }
 
   // Popup for adding a new token
-  AVMEPopupYesNo {
+  AVMEPopupAddToken {
     id: addTokenPopup
-    property bool addFail: false
-    height: window.height * 0.35
-    info: (!addFail)
-    ? "Enter the new token's address."
-    : "Token not found or couldn't be added,<br>please try another or check the formatting."
-    yesBtn.text: "Add"
-    noBtn.text: "Back"
-    yesBtn.enabled: (tokenAddressInput.acceptableInput)
-
-    AVMEInput {
-      id: tokenAddressInput
-      width: parent.width * 0.9
-      anchors.horizontalCenter: parent.horizontalCenter
-      anchors.verticalCenter: parent.verticalCenter
-      validator: RegExpValidator { regExp: /0x[0-9a-fA-F]{40}/ }
-      label: "Token address"
-      placeholder: "e.g. 0x123456789ABCDEF..."
-    }
-
-    yesBtn.onClicked: {
-      if (System.addTokenToList(tokenAddressInput.text)) {
-        addFail = false
-        reloadTokenList()
-        tokenAddressInput.text = ""
-        addTokenPopup.close()
-      } else {
-        addFail = true
-      }
-    }
-    noBtn.onClicked: {
-      tokenAddressInput.text = ""
-      addFail = false
-      addTokenPopup.close()
-    }
   }
 
   // Popup for removing a token

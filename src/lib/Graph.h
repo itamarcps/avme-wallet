@@ -38,11 +38,10 @@ class Graph {
     static std::string httpGetRequest(std::string reqBody);
 
     /**
-     * Get data from a given token.
-     * Returns a string/int pair with the token symbol and its decimals, or
-     * an empty map if the token doesn't exist.
+     * Check if a given token can be traded in Pangolin.
+     * Returns true on success, false on failure.
      */
-    static std::pair<std::string, int> getTokenData(std::string address);
+    static bool isTokenTradeable(std::string address);
 
     // TODO: move hardcoded addresses to Pangolin.cpp when changing to mainnet
     // Those are all mainnet addresses:

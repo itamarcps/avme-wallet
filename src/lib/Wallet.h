@@ -132,10 +132,9 @@ class Wallet {
     /**
      * Get the list of registered tokens for the Wallet.
      * Creates the list beforehand if it doesn't already exist.
-     * Returns a map with the tokens' addresses and a pair with their symbols and decimals,
-     * or an empty map on failure.
+     * Returns a tuple vector with the token info, or an empty vector on failure.
      */
-    std::map<std::string, std::pair<std::string, int>> getTokenList();
+    std::vector<std::tuple<std::string, std::string, int, std::string>> getTokenList();
 
     /**
      * Add/remove a token to/from the list, respectively.
@@ -143,6 +142,12 @@ class Wallet {
      */
     bool addTokenToList(std::string address, std::string symbol, int decimals);
     bool removeTokenFromList(std::string address);
+
+    /**
+     * Check if a token alredy exists in the Wallet.
+     * Returns true on success, false on failure.
+     */
+    bool tokenIsAdded(std::string address);
 
     /**
      * Build a transaction from user data.

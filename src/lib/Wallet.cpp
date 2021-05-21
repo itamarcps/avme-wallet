@@ -158,8 +158,8 @@ Secret Wallet::getSecret(std::string const& address, std::string pass) {
   }
 }
 
-std::map<std::string, std::pair<std::string, int>> Wallet::getTokenList() {
-  std::map<std::string, std::pair<std::string, int>> ret;
+std::vector<std::tuple<std::string, std::string, int, std::string>> Wallet::getTokenList() {
+  std::vector<std::tuple<std::string, std::string, int, std::string>> ret;
   boost::filesystem::path tokenFilePath = Utils::walletFolderPath.string()
     + "/wallet/c-avax/tokens/tokens.json";
   if (!exists(tokenFilePath.parent_path()) || !exists(tokenFilePath)) {
@@ -169,6 +169,7 @@ std::map<std::string, std::pair<std::string, int>> Wallet::getTokenList() {
     defaultToken["address"] = Pangolin::tokenContracts["AVME"];
     defaultToken["symbol"] = "AVME";
     defaultToken["decimals"] = 18;
+    defaultToken["image"] = "";
     tokenArray.push_back(defaultToken);
     tokenRoot["tokens"] = tokenArray;
     json_spirit::mValue success = JSON::writeFile(tokenRoot, tokenFilePath);
@@ -181,11 +182,13 @@ std::map<std::string, std::pair<std::string, int>> Wallet::getTokenList() {
       std::string address = JSON::objectItem(JSON::arrayItem(tokenArray, i), "address").get_str();
       std::string symbol = JSON::objectItem(JSON::arrayItem(tokenArray, i), "symbol").get_str();
       int decimals = JSON::objectItem(JSON::arrayItem(tokenArray, i), "decimals").get_int();
-      ret.insert(std::make_pair(address, std::make_pair(symbol, decimals)));
+      std::string image = JSON::objectItem(JSON::arrayItem(tokenArray, i), "image").get_str();
+      ret.push_back(std::make_tuple(address, symbol, decimals, image));
     }
   } catch (std::exception &e) {
     Utils::logToDebug(std::string("Couldn't load token list from Wallet: ")
       + JSON::objectItem(tokenData, "ERROR").get_str());
+    ret.clear();
     // Uncomment to see output
     //std::cout << "Couldn't load token list from Wallet: "
     //  << JSON::objectItem(tokenData, "ERROR").get_str() << std::endl;
@@ -205,6 +208,9 @@ bool Wallet::addTokenToList(std::string address, std::string symbol, int decimal
   newToken["address"] = address;
   newToken["symbol"] = symbol;
   newToken["decimals"] = decimals;
+  boost::filesystem::path iconPath = Utils::walletFolderPath.string()
+    + "/wallet/c-avax/tokens/" + symbol + ".png";
+  newToken["image"] = (exists(iconPath)) ? iconPath.string() : "";
   tokenArray.push_back(newToken);
   tokenRoot["tokens"] = tokenArray;
   json_spirit::mValue success = JSON::writeFile(tokenRoot, tokenFilePath);
@@ -244,6 +250,23 @@ bool Wallet::removeTokenFromList(std::string address) {
         return true;
       }
       return false;
+    }
+  }
+  return false;
+}
+
+bool Wallet::tokenIsAdded(std::string address) {
+  boost::filesystem::path tokenFilePath = Utils::walletFolderPath.string()
+    + "/wallet/c-avax/tokens/tokens.json";
+  json_spirit::mObject tokenRoot;
+  json_spirit::mArray tokenArray;
+  json_spirit::mValue tokenData = JSON::readFile(tokenFilePath);
+
+  tokenArray = JSON::objectItem(tokenData, "tokens").get_array();
+  for (int i = 0; i < tokenArray.size(); ++i) {
+    std::string arrayAddress = JSON::objectItem(JSON::arrayItem(tokenArray, i), "address").get_str();
+    if (arrayAddress == address) {
+      return true;
     }
   }
   return false;
