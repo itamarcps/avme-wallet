@@ -330,10 +330,11 @@ class System : public QObject {
         std::string address, symbol, image;
         int decimals;
         std::tie(address, symbol, decimals, image) = token;
-        // TODO: placeholder img
         if (symbol == "AVME") {
           image = "qrc:/img/avme_logo.png";
-        } else if (!image.empty()) {
+        } else if (image.empty()) {
+          image = "qrc:/img/icons/unknownToken.png";
+        } else {
           #ifdef __MINGW32__
             image.insert(0, "file:///");
           #else

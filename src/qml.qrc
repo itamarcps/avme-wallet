@@ -70,8 +70,11 @@
         <file>img/icons/microchipSelect.png</file>
         <file>img/icons/refresh.png</file>
         <file>img/icons/refreshSelect.png</file>
+        <file>img/icons/tokens.png</file>
+        <file>img/icons/tokensSelect.png</file>
         <file>img/icons/upload.png</file>
         <file>img/icons/uploadSelect.png</file>
+        <file>img/icons/unknownToken.png</file>
 
         <file>fonts/RobotoMono-Bold.ttf</file>
         <file>fonts/RobotoMono-Italic.ttf</file>

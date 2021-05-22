@@ -73,7 +73,7 @@ Rectangle {
 
     AVMESideMenuItem {
       id: itemTokens
-      icon: (itemSelection.y == y) ? "qrc:/img/icons/coinSelect.png" : "qrc:/img/icons/coin.png"
+      icon: (itemSelection.y == y) ? "qrc:/img/icons/tokensSelect.png" : "qrc:/img/icons/tokens.png"
       label: "Tokens"
       area.onClicked: {
         itemSelection.y = y

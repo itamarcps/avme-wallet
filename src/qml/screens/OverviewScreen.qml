@@ -311,11 +311,25 @@ Item {
           }
 
           Text {
+            id: accountCoinName
+            width: parent.width * 0.8
+            anchors {
+              verticalCenter: parent.verticalCenter
+              verticalCenterOffset: -20
+              left: accountCoinLogo.right
+              leftMargin: 10
+            }
+            color: "#FFFFFF"
+            font.pixelSize: 14.0
+            elide: Text.ElideRight
+            text: System.getCurrentCoin()
+          }
+
+          Text {
             id: accountCoinBalance
             width: parent.width * 0.8
             anchors {
               verticalCenter: parent.verticalCenter
-              verticalCenterOffset: -10
               left: accountCoinLogo.right
               leftMargin: 10
             }
@@ -329,7 +343,7 @@ Item {
             width: parent.width * 0.8
             anchors {
               verticalCenter: parent.verticalCenter
-              verticalCenterOffset: 10
+              verticalCenterOffset: 20
               left: accountCoinLogo.right
               leftMargin: 10
             }
@@ -363,11 +377,25 @@ Item {
           }
 
           Text {
+            id: accountTokenName
+            width: parent.width * 0.8
+            anchors {
+              verticalCenter: parent.verticalCenter
+              verticalCenterOffset: -20
+              left: accountTokenLogo.right
+              leftMargin: 10
+            }
+            color: "#FFFFFF"
+            font.pixelSize: 14.0
+            elide: Text.ElideRight
+            text: System.getCurrentToken()
+          }
+
+          Text {
             id: accountTokenBalance
             width: parent.width * 0.8
             anchors {
               verticalCenter: parent.verticalCenter
-              verticalCenterOffset: -10
               left: accountTokenLogo.right
               leftMargin: 10
             }
@@ -381,7 +409,7 @@ Item {
             width: parent.width * 0.8
             anchors {
               verticalCenter: parent.verticalCenter
-              verticalCenterOffset: 10
+              verticalCenterOffset: 20
               left: accountTokenLogo.right
               leftMargin: 10
             }
@@ -503,11 +531,25 @@ Item {
           }
 
           Text {
+            id: walletCoinName
+            width: parent.width * 0.8
+            anchors {
+              verticalCenter: parent.verticalCenter
+              verticalCenterOffset: -20
+              left: walletCoinLogo.right
+              leftMargin: 10
+            }
+            color: "#FFFFFF"
+            font.pixelSize: 14.0
+            elide: Text.ElideRight
+            text: System.getCurrentCoin()
+          }
+
+          Text {
             id: walletCoinBalance
             width: parent.width * 0.8
             anchors {
               verticalCenter: parent.verticalCenter
-              verticalCenterOffset: -10
               left: walletCoinLogo.right
               leftMargin: 10
             }
@@ -521,7 +563,7 @@ Item {
             width: parent.width * 0.8
             anchors {
               verticalCenter: parent.verticalCenter
-              verticalCenterOffset: 10
+              verticalCenterOffset: 20
               left: walletCoinLogo.right
               leftMargin: 10
             }
@@ -555,11 +597,25 @@ Item {
           }
 
           Text {
+            id: walletTokenName
+            width: parent.width * 0.8
+            anchors {
+              verticalCenter: parent.verticalCenter
+              verticalCenterOffset: -20
+              left: walletTokenLogo.right
+              leftMargin: 10
+            }
+            color: "#FFFFFF"
+            font.pixelSize: 14.0
+            elide: Text.ElideRight
+            text: System.getCurrentToken()
+          }
+
+          Text {
             id: walletTokenBalance
             width: parent.width * 0.8
             anchors {
               verticalCenter: parent.verticalCenter
-              verticalCenterOffset: -10
               left: walletTokenLogo.right
               leftMargin: 10
             }
@@ -573,7 +629,7 @@ Item {
             width: parent.width * 0.8
             anchors {
               verticalCenter: parent.verticalCenter
-              verticalCenterOffset: 10
+              verticalCenterOffset: 20
               left: walletTokenLogo.right
               leftMargin: 10
             }
