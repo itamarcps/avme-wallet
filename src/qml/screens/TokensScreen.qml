@@ -80,7 +80,15 @@ Item {
         id: btnSelect
         width: tokensPanel.width * 0.25
         text: "Select this token"
-        // TODO: onClicked
+        onClicked: {
+          System.setToken(
+            tokenGrid.currentItem.itemAddress,
+            tokenGrid.currentItem.itemSymbol,
+            tokenGrid.currentItem.itemDecimals,
+          )
+          System.goToOverview()
+          System.setScreen(content, "qml/screens/OverviewScreen.qml")
+        }
       }
       AVMEButton {
         id: btnRemove

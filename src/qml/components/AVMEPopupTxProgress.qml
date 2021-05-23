@@ -139,11 +139,11 @@ Popup {
     text: {
       switch (opStr) {
         case "Send AVAX":
-          text: "Sending <b>" + coinAmountStr + " " + System.getCurrentCoin() + "</b>"
+          text: "Sending <b>" + coinAmountStr + " " + System.getCurrentCoinName() + "</b>"
           + "<br>to the address <b>" + toStr + "</b>...";
           break;
         case "Send AVME":
-          text: "Sending <b>" + tokenAmountStr + " " + System.getCurrentToken() + "</b>"
+          text: "Sending <b>" + tokenAmountStr + " " + System.getCurrentTokenName() + "</b>"
           + "<br>to the address <b>" + toStr + "</b>...";
           break;
         case "Approve Exchange":
@@ -156,14 +156,14 @@ Popup {
           text: "Sending approval for staking...";
           break;
         case "Swap AVAX -> AVME":
-          text: "Swapping <b>" + coinAmountStr + " " + System.getCurrentCoin() + "</b>..."
+          text: "Swapping <b>" + coinAmountStr + " " + System.getCurrentCoinName() + "</b>..."
           break;
         case "Swap AVME -> AVAX":
-          text: "Swapping <b>" + tokenAmountStr + " " + System.getCurrentToken() + "</b>..."
+          text: "Swapping <b>" + tokenAmountStr + " " + System.getCurrentTokenName() + "</b>..."
           break;
         case "Add Liquidity":
-          text: "Adding <b>" + coinAmountStr + " " + System.getCurrentCoin() + "</b>"
-          + "<br>and <b>" + tokenAmountStr + " " + System.getCurrentToken() + "</b>"
+          text: "Adding <b>" + coinAmountStr + " " + System.getCurrentCoinName() + "</b>"
+          + "<br>and <b>" + tokenAmountStr + " " + System.getCurrentTokenName() + "</b>"
           + "<br>to the pool...";
           break;
         case "Remove Liquidity":

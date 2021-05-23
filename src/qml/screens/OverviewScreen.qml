@@ -322,7 +322,7 @@ Item {
             color: "#FFFFFF"
             font.pixelSize: 14.0
             elide: Text.ElideRight
-            text: System.getCurrentCoin()
+            text: System.getCurrentCoinName()
           }
 
           Text {
@@ -372,7 +372,7 @@ Item {
             }
             antialiasing: true
             smooth: true
-            source: "qrc:/img/avme_logo.png"
+            source: System.getCurrentTokenIcon()
             fillMode: Image.PreserveAspectFit
           }
 
@@ -388,7 +388,7 @@ Item {
             color: "#FFFFFF"
             font.pixelSize: 14.0
             elide: Text.ElideRight
-            text: System.getCurrentToken()
+            text: System.getCurrentTokenName()
           }
 
           Text {
@@ -542,7 +542,7 @@ Item {
             color: "#FFFFFF"
             font.pixelSize: 14.0
             elide: Text.ElideRight
-            text: System.getCurrentCoin()
+            text: System.getCurrentCoinName()
           }
 
           Text {
@@ -592,7 +592,7 @@ Item {
             }
             antialiasing: true
             smooth: true
-            source: "qrc:/img/avme_logo.png"
+            source: System.getCurrentTokenIcon()
             fillMode: Image.PreserveAspectFit
           }
 
@@ -608,7 +608,7 @@ Item {
             color: "#FFFFFF"
             font.pixelSize: 14.0
             elide: Text.ElideRight
-            text: System.getCurrentToken()
+            text: System.getCurrentTokenName()
           }
 
           Text {

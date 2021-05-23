@@ -272,6 +272,34 @@ bool Wallet::tokenIsAdded(std::string address) {
   return false;
 }
 
+void Wallet::setToken(std::string address, std::string symbol, int decimals) {
+  this->currentTokenAddress = address;
+  this->currentTokenName = symbol;
+  this->currentTokenDecimals = decimals;
+}
+
+void Wallet::setDefaultToken() {
+  json_spirit::mObject defaultToken;
+  defaultToken["address"] = Pangolin::tokenContracts["AVME"];
+  defaultToken["symbol"] = "AVME";
+  defaultToken["decimals"] = 18;
+  defaultToken["image"] = "";
+  boost::filesystem::path tokenFilePath = Utils::walletFolderPath.string()
+    + "/wallet/c-avax/tokens/tokens.json";
+  if (!exists(tokenFilePath.parent_path()) || !exists(tokenFilePath)) {
+    create_directories(tokenFilePath.parent_path());
+    json_spirit::mObject tokenRoot;
+    json_spirit::mArray tokenArray;
+    tokenArray.push_back(defaultToken);
+    tokenRoot["tokens"] = tokenArray;
+    JSON::writeFile(tokenRoot, tokenFilePath);
+  }
+  this->currentTokenAddress = defaultToken["address"].get_str();
+  this->currentTokenName = defaultToken["symbol"].get_str();
+  this->currentTokenDecimals = defaultToken["decimals"].get_int();
+  this->currentTokenIsTradeable = true;
+}
+
 TransactionSkeleton Wallet::buildTransaction(
   std::string from, std::string to, std::string value,
   std::string gasLimit, std::string gasPrice, std::string dataHex

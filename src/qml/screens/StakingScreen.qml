@@ -225,7 +225,7 @@ Item {
         horizontalAlignment: Text.AlignHCenter
         color: "#FFFFFF"
         font.pixelSize: 18.0
-        text: "Unharvested " + System.getCurrentToken() + ":<br><b>" + reward + "</b>"
+        text: "Unharvested " + System.getCurrentTokenName() + ":<br><b>" + reward + "</b>"
       }
 
       AVMEButton {
@@ -235,12 +235,12 @@ Item {
         enabled: {
           var acc = System.getAccountBalances(System.getCurrentAccount())
           enabled: (
-            reward != "" && !System.balanceIsZero(reward, System.getCurrentTokenDecimals()) &&
+            reward != "" && !System.balanceIsZero(reward, System.getCurrentTokenNameDecimals()) &&
             !System.balanceIsZero(acc.balanceLPLocked, 18)
           )
         }
         text: (reward != "")
-        ? "Harvest " + System.getCurrentToken() + " & Unstake LP"
+        ? "Harvest " + System.getCurrentTokenName() + " & Unstake LP"
         : "Querying reward..."
         onClicked: {
           System.setScreen(content, "qml/screens/TransactionScreen.qml")
@@ -252,9 +252,9 @@ Item {
         id: btnHarvest
         width: (parent.width * 0.75)
         anchors.horizontalCenter: parent.horizontalCenter
-        enabled: (reward != "" && !System.balanceIsZero(reward, System.getCurrentTokenDecimals()))
+        enabled: (reward != "" && !System.balanceIsZero(reward, System.getCurrentTokenNameDecimals()))
         text: (reward != "")
-        ? "Harvest " + System.getCurrentToken()
+        ? "Harvest " + System.getCurrentTokenName()
         : "Querying reward..."
         onClicked: {
           System.setScreen(content, "qml/screens/TransactionScreen.qml")

@@ -22,14 +22,14 @@
 
 #ifdef __MINGW32__
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
-// Redefine the WINNT version for MinGW, use windows 7 intead of windows XP
+// Redefine the WINNT version for MinGW, use Windows 7 instead of Windows XP
 #undef _WIN32_WINNT
 #define _WIN32_WINNT 0x0601
 #define WINVER 0x0601
 #else
 Q_IMPORT_PLUGIN(QXcbIntegrationPlugin)
 #undef FONTCONFIG_PATH
-#define FONTCONFIG_PATH "/etc/fonts" // Redefine fontconfig path for the program.
+#define FONTCONFIG_PATH "/etc/fonts" // Redefine fontconfig path for the program
 #endif
 Q_IMPORT_PLUGIN(QtQuick2Plugin)
 Q_IMPORT_PLUGIN(QtQuick2WindowPlugin)
@@ -56,6 +56,7 @@ class System : public QObject {
   signals:
     void hideMenu();
     void goToOverview();
+    void tokenChanged();
     void accountsGenerated(QVariantList accounts);
     void accountCreated(QVariantMap data);
     void accountCreationFailed();
@@ -94,32 +95,32 @@ class System : public QObject {
 
   private:
     Wallet w;
-    bool firstLoad;
-    std::string currentCoin;
-    int currentCoinDecimals;
-    std::string currentToken;
-    int currentTokenDecimals;
-    std::string currentAccount;
 
   public:
-    // Getters/Setters for private vars
-    Q_INVOKABLE QString getCurrentCoin() { return QString::fromStdString(this->currentCoin); }
-    Q_INVOKABLE void setCurrentCoin(QString coin) { this->currentCoin = coin.toStdString(); }
+    // Getters/Setters for the Wallet's vars
+    Q_INVOKABLE bool getFirstLoad() { return this->w.firstLoad; }
+    Q_INVOKABLE void setFirstLoad(bool b) { this->w.firstLoad = b; }
 
-    Q_INVOKABLE bool getFirstLoad() { return this->firstLoad; }
-    Q_INVOKABLE void setFirstLoad(bool b) { this->firstLoad = b; }
+    Q_INVOKABLE QString getCurrentAccount() { return QString::fromStdString(this->w.currentAccount); }
+    Q_INVOKABLE void setCurrentAccount(QString account) { this->w.currentAccount = account.toStdString(); }
 
-    Q_INVOKABLE int getCurrentCoinDecimals() { return this->currentCoinDecimals; }
-    Q_INVOKABLE void setCurrentCoinDecimals(int decimals) { this->currentCoinDecimals = decimals; }
+    Q_INVOKABLE QString getCurrentCoinName() { return QString::fromStdString(this->w.currentCoinName); }
+    Q_INVOKABLE void setCurrentCoinName(QString coin) { this->w.currentCoinName = coin.toStdString(); }
 
-    Q_INVOKABLE QString getCurrentToken() { return QString::fromStdString(this->currentToken); }
-    Q_INVOKABLE void setCurrentToken(QString token) { this->currentToken = token.toStdString(); }
+    Q_INVOKABLE QString getCurrentTokenName() { return QString::fromStdString(this->w.currentTokenName); }
+    Q_INVOKABLE void setCurrentTokenName(QString token) { this->w.currentTokenName = token.toStdString(); }
 
-    Q_INVOKABLE int getCurrentTokenDecimals() { return this->currentTokenDecimals; }
-    Q_INVOKABLE void setCurrentTokenDecimals(int decimals) { this->currentTokenDecimals = decimals; }
+    Q_INVOKABLE QString getCurrentTokenAddress() { return QString::fromStdString(this->w.currentTokenAddress); }
+    Q_INVOKABLE void setCurrentTokenAddress(QString address) { this->w.currentTokenAddress = address.toStdString(); }
 
-    Q_INVOKABLE QString getCurrentAccount() { return QString::fromStdString(this->currentAccount); }
-    Q_INVOKABLE void setCurrentAccount(QString account) { this->currentAccount = account.toStdString(); }
+    Q_INVOKABLE int getCurrentCoinDecimals() { return this->w.currentCoinDecimals; }
+    Q_INVOKABLE void setCurrentCoinDecimals(int decimals) { this->w.currentCoinDecimals = decimals; }
+
+    Q_INVOKABLE int getCurrentTokenDecimals() { return this->w.currentTokenDecimals; }
+    Q_INVOKABLE void setCurrentTokenDecimals(int decimals) { this->w.currentTokenDecimals = decimals; }
+
+    Q_INVOKABLE bool getCurrentTokenIsTradeable() { return this->w.currentTokenIsTradeable; }
+    Q_INVOKABLE void setCurrentTokenIsTradeable(bool b) { this->w.currentTokenIsTradeable = b; }
 
     // Get the project's version
     Q_INVOKABLE QString getProjectVersion() {
@@ -404,6 +405,32 @@ class System : public QObject {
       return this->w.tokenIsAdded(addressStr);
     }
 
+    // Set a given token or the default one (AVME), respectively
+    Q_INVOKABLE void setToken(QString address, QString symbol, int decimals) {
+      this->w.setToken(address.toStdString(), symbol.toStdString(), decimals);
+      this->w.currentTokenIsTradeable = (symbol == "AVME")
+        ? true : Graph::isTokenTradeable(address.toStdString());
+      emit tokenChanged();
+    }
+
+    Q_INVOKABLE void setDefaultToken() {
+      this->w.setDefaultToken();
+      emit tokenChanged();
+    }
+
+    // Get the icon for the selected token
+    Q_INVOKABLE QString getCurrentTokenIcon() {
+      if (this->w.currentTokenName == "AVME") {
+        return QString::fromStdString("qrc:/img/avme_logo.png");
+      } else {
+        boost::filesystem::path iconPath = Utils::walletFolderPath.string()
+          + "/wallet/c-avax/tokens/" + this->w.currentTokenName + ".png";
+        return (exists(iconPath))
+          ? QString::fromStdString(iconPath.string())
+          : QString::fromStdString("qrc:/img/icons/unknownToken.png");
+      }
+    }
+
     // List the Account's transactions, updating their statuses on the spot if required
     Q_INVOKABLE void listAccountTransactions(QString address) {
       QtConcurrent::run([=](){
@@ -557,10 +584,10 @@ class System : public QObject {
         for (Account &a : w.accounts) {
           a.balancesThreadLock.lock();
           totalAVAX += boost::lexical_cast<u256>(
-            Utils::fixedPointToWei(a.balanceAVAX, this->currentCoinDecimals)
+            Utils::fixedPointToWei(a.balanceAVAX, this->w.currentCoinDecimals)
           );
           totalAVME += boost::lexical_cast<u256>(
-            Utils::fixedPointToWei(a.balanceAVME, this->currentTokenDecimals)
+            Utils::fixedPointToWei(a.balanceAVME, this->w.currentTokenDecimals)
           );
           totalLPFree += boost::lexical_cast<u256>(
             Utils::fixedPointToWei(a.balanceLPFree, 18)
@@ -571,10 +598,10 @@ class System : public QObject {
           a.balancesThreadLock.unlock();
         }
         totalAVAXStr = Utils::weiToFixedPoint(
-          boost::lexical_cast<std::string>(totalAVAX), this->currentCoinDecimals
+          boost::lexical_cast<std::string>(totalAVAX), this->w.currentCoinDecimals
         );
         totalAVMEStr = Utils::weiToFixedPoint(
-          boost::lexical_cast<std::string>(totalAVME), this->currentTokenDecimals
+          boost::lexical_cast<std::string>(totalAVME), this->w.currentTokenDecimals
         );
         totalLPFreeStr = Utils::weiToFixedPoint(
           boost::lexical_cast<std::string>(totalLPFree), 18
@@ -603,10 +630,10 @@ class System : public QObject {
         for (Account &a : w.accounts) {
           a.balancesThreadLock.lock();
           totalAVAX += boost::lexical_cast<u256>(
-            Utils::fixedPointToWei(a.balanceAVAX, this->currentCoinDecimals)
+            Utils::fixedPointToWei(a.balanceAVAX, this->w.currentCoinDecimals)
           );
           totalAVME += boost::lexical_cast<u256>(
-            Utils::fixedPointToWei(a.balanceAVME, this->currentTokenDecimals)
+            Utils::fixedPointToWei(a.balanceAVME, this->w.currentTokenDecimals)
           );
           totalLPFree += boost::lexical_cast<u256>(
             Utils::fixedPointToWei(a.balanceLPFree, 18)
@@ -617,10 +644,10 @@ class System : public QObject {
           a.balancesThreadLock.unlock();
         }
         totalAVAXStr = Utils::weiToFixedPoint(
-          boost::lexical_cast<std::string>(totalAVAX), this->currentCoinDecimals
+          boost::lexical_cast<std::string>(totalAVAX), this->w.currentCoinDecimals
         );
         totalAVMEStr = Utils::weiToFixedPoint(
-          boost::lexical_cast<std::string>(totalAVME), this->currentTokenDecimals
+          boost::lexical_cast<std::string>(totalAVME), this->w.currentTokenDecimals
         );
         totalLPFreeStr = Utils::weiToFixedPoint(
           boost::lexical_cast<std::string>(totalLPFree), 18
@@ -690,7 +717,7 @@ class System : public QObject {
         bigfloat AVMEreserves = ("AVME" == first)
           ? boost::lexical_cast<bigfloat>(u256(reserves[0]))
           : boost::lexical_cast<bigfloat>(u256(reserves[1]));
-        bigfloat AVAXamount = bigfloat(Utils::fixedPointToWei("1", this->currentCoinDecimals));
+        bigfloat AVAXamount = bigfloat(Utils::fixedPointToWei("1", this->w.currentCoinDecimals));
         // Amount and reserves are converted back to a non-scientific notation number
         bigfloat AVMEamount = bigfloat(Pangolin::calcLiquidityAmountOut(
           boost::lexical_cast<std::string>(u256(AVAXamount)),
@@ -807,13 +834,13 @@ class System : public QObject {
     // Create a RegExp for coin and token transaction amount input, respectively
     Q_INVOKABLE QRegExp createCoinRegExp() {
       QRegExp rx;
-      rx.setPattern("[0-9]{1,}(?:\\.[0-9]{1," + QString::number(this->currentCoinDecimals) + "})?");
+      rx.setPattern("[0-9]{1,}(?:\\.[0-9]{1," + QString::number(this->w.currentCoinDecimals) + "})?");
       return rx;
     }
 
     Q_INVOKABLE QRegExp createTokenRegExp() {
       QRegExp rx;
-      rx.setPattern("[0-9]{1,}(?:\\.[0-9]{1," + QString::number(this->currentTokenDecimals) + "})?");
+      rx.setPattern("[0-9]{1,}(?:\\.[0-9]{1," + QString::number(this->w.currentTokenDecimals) + "})?");
       return rx;
     }
 
@@ -839,13 +866,13 @@ class System : public QObject {
 
       std::string balanceAVAXStr;
       for (Account &a : w.accounts) {
-        if (a.address == this->currentAccount) {
+        if (a.address == this->w.currentAccount) {
           a.balancesThreadLock.lock();
           balanceAVAXStr = a.balanceAVAX;
           a.balancesThreadLock.unlock();
         }
       }
-      u256 totalU256 = u256(Utils::fixedPointToWei(balanceAVAXStr, this->currentCoinDecimals));
+      u256 totalU256 = u256(Utils::fixedPointToWei(balanceAVAXStr, this->w.currentCoinDecimals));
       if ((gasLimitU256 * gasPriceU256) > totalU256) {
         return QString::fromStdString(Utils::weiToFixedPoint(
           boost::lexical_cast<std::string>(u256(0)), 18
@@ -894,8 +921,8 @@ class System : public QObject {
       std::string senderStr, receiverStr;
       u256 senderU256, receiverU256;
       int decimals;
-      if (type == "Coin") decimals = this->currentCoinDecimals;
-      else if (type == "Token") decimals = this->currentTokenDecimals;
+      if (type == "Coin") decimals = this->w.currentCoinDecimals;
+      else if (type == "Token") decimals = this->w.currentTokenDecimals;
       else if (type == "LP") decimals = 18;
       senderStr = Utils::fixedPointToWei(senderAmount.toStdString(), decimals);
       receiverStr = Utils::fixedPointToWei(receiverAmount.toStdString(), decimals);
@@ -924,8 +951,8 @@ class System : public QObject {
         // Convert the values required for a transaction to their Wei formats.
         // Gas price is in Gwei (10^9 Wei) and amounts are in fixed point.
         // Gas limit is already in Wei so we skip that.
-        coinAmountStr = Utils::fixedPointToWei(coinAmountStr, this->currentCoinDecimals);
-        tokenAmountStr = Utils::fixedPointToWei(tokenAmountStr, this->currentTokenDecimals);
+        coinAmountStr = Utils::fixedPointToWei(coinAmountStr, this->w.currentCoinDecimals);
+        tokenAmountStr = Utils::fixedPointToWei(tokenAmountStr, this->w.currentTokenDecimals);
         lpAmountStr = Utils::fixedPointToWei(lpAmountStr, 18);
         gasPriceStr = boost::lexical_cast<std::string>(
           boost::lexical_cast<u256>(gasPriceStr) * raiseToPow(10, 9)
@@ -936,26 +963,26 @@ class System : public QObject {
         TransactionSkeleton txSkel;
         if (operationStr == "Send AVAX") {
           txSkel = this->w.buildTransaction(
-            this->currentAccount, toStr, coinAmountStr, gasLimitStr, gasPriceStr
+            this->w.currentAccount, toStr, coinAmountStr, gasLimitStr, gasPriceStr
           );
         } else if (operationStr == "Send AVME") {
           txSkel = this->w.buildTransaction(
-            this->currentAccount, Pangolin::tokenContracts[this->currentToken],
+            this->w.currentAccount, Pangolin::tokenContracts[this->w.currentTokenName],
             "0", gasLimitStr, gasPriceStr, Pangolin::transfer(toStr, tokenAmountStr)
           );
         } else if (operationStr == "Approve Exchange") {
           txSkel = this->w.buildTransaction(
-            this->currentAccount, Pangolin::tokenContracts["AVME"],
+            this->w.currentAccount, Pangolin::tokenContracts["AVME"],
             "0", gasLimitStr, gasPriceStr, Pangolin::approve(Pangolin::routerContract)
           );
         } else if (operationStr == "Approve Liquidity") {
           txSkel = this->w.buildTransaction(
-            this->currentAccount, Pangolin::getPair(this->currentCoin, this->currentToken),
+            this->w.currentAccount, Pangolin::getPair(this->w.currentCoinName, this->w.currentTokenName),
             "0", gasLimitStr, gasPriceStr, Pangolin::approve(Pangolin::routerContract)
           );
         } else if (operationStr == "Approve Staking") {
           txSkel = this->w.buildTransaction(
-            this->currentAccount, Pangolin::getPair(this->currentCoin, this->currentToken),
+            this->w.currentAccount, Pangolin::getPair(this->w.currentCoinName, this->w.currentTokenName),
             "0", gasLimitStr, gasPriceStr, Pangolin::approve(Pangolin::stakingContract)
           );
         } else if (operationStr == "Swap AVAX -> AVME") {
@@ -965,7 +992,7 @@ class System : public QObject {
             // amountOutMin, path, to, deadline
             boost::lexical_cast<std::string>(amountOutMin),
             { Pangolin::tokenContracts["WAVAX"], Pangolin::tokenContracts["AVME"] },
-            this->currentAccount,
+            this->w.currentAccount,
             boost::lexical_cast<std::string>(
               std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()
@@ -973,7 +1000,7 @@ class System : public QObject {
             )
           );
           txSkel = this->w.buildTransaction(
-            this->currentAccount, Pangolin::routerContract,
+            this->w.currentAccount, Pangolin::routerContract,
             coinAmountStr, gasLimitStr, gasPriceStr, dataHex
           );
         } else if (operationStr == "Swap AVME -> AVAX") {
@@ -984,7 +1011,7 @@ class System : public QObject {
             tokenAmountStr,
             boost::lexical_cast<std::string>(amountOutMin),
             { Pangolin::tokenContracts["AVME"], Pangolin::tokenContracts["WAVAX"] },
-            this->currentAccount,
+            this->w.currentAccount,
             boost::lexical_cast<std::string>(
               std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()
@@ -992,7 +1019,7 @@ class System : public QObject {
             )
           );
           txSkel = this->w.buildTransaction(
-            this->currentAccount, Pangolin::routerContract,
+            this->w.currentAccount, Pangolin::routerContract,
             "0", gasLimitStr, gasPriceStr, dataHex
           );
         } else if (operationStr == "Add Liquidity") {
@@ -1002,11 +1029,11 @@ class System : public QObject {
           amountTokenMin -= (amountTokenMin / 200); // 0.5%
           dataHex = Pangolin::addLiquidityAVAX(
             // tokenAddress, amountTokenDesired, amountTokenMin, amountAVAXMin, to, deadline
-            Pangolin::tokenContracts[this->currentToken],
+            Pangolin::tokenContracts[this->w.currentTokenName],
             tokenAmountStr,
             boost::lexical_cast<std::string>(amountTokenMin),
             boost::lexical_cast<std::string>(amountAVAXMin),
-            this->currentAccount,
+            this->w.currentAccount,
             boost::lexical_cast<std::string>(
               std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()
@@ -1014,7 +1041,7 @@ class System : public QObject {
             )
           );
           txSkel = this->w.buildTransaction(
-            this->currentAccount, Pangolin::routerContract,
+            this->w.currentAccount, Pangolin::routerContract,
             coinAmountStr, gasLimitStr, gasPriceStr, dataHex
           );
         } else if (operationStr == "Remove Liquidity") {
@@ -1024,11 +1051,11 @@ class System : public QObject {
           amountTokenMin -= (amountTokenMin / 200); // 0.5%
           dataHex = Pangolin::removeLiquidityAVAX(
             // tokenAddress, liquidity, amountTokenMin, amountAVAXMin, to, deadline
-            Pangolin::tokenContracts[this->currentToken],
+            Pangolin::tokenContracts[this->w.currentTokenName],
             lpAmountStr,
             boost::lexical_cast<std::string>(amountTokenMin),
             boost::lexical_cast<std::string>(amountAVAXMin),
-            this->currentAccount,
+            this->w.currentAccount,
             boost::lexical_cast<std::string>(
               std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()
@@ -1036,27 +1063,27 @@ class System : public QObject {
             )
           );
           txSkel = this->w.buildTransaction(
-            this->currentAccount, Pangolin::routerContract,
+            this->w.currentAccount, Pangolin::routerContract,
             "0", gasLimitStr, gasPriceStr, dataHex
           );
         } else if (operationStr == "Stake LP") {
           txSkel = this->w.buildTransaction(
-            this->currentAccount, Pangolin::stakingContract,
+            this->w.currentAccount, Pangolin::stakingContract,
             "0", gasLimitStr, gasPriceStr, Staking::stake(lpAmountStr)
           );
         } else if (operationStr == "Unstake LP") {
           txSkel = this->w.buildTransaction(
-            this->currentAccount, Pangolin::stakingContract,
+            this->w.currentAccount, Pangolin::stakingContract,
             "0", gasLimitStr, gasPriceStr, Staking::withdraw(lpAmountStr)
           );
         } else if (operationStr == "Harvest AVME") {
           txSkel = this->w.buildTransaction(
-            this->currentAccount, Pangolin::stakingContract,
+            this->w.currentAccount, Pangolin::stakingContract,
             "0", gasLimitStr, gasPriceStr, Staking::getReward()
           );
         } else if (operationStr == "Exit Staking") {
           txSkel = this->w.buildTransaction(
-            this->currentAccount, Pangolin::stakingContract,
+            this->w.currentAccount, Pangolin::stakingContract,
             "0", gasLimitStr, gasPriceStr, Staking::exit()
           );
         }
@@ -1086,16 +1113,16 @@ class System : public QObject {
     Q_INVOKABLE void getAllowances() {
       QtConcurrent::run([=](){
         std::string exchangeAllowance = Pangolin::allowance(
-          Pangolin::tokenContracts[this->currentToken],
-          this->currentAccount, Pangolin::routerContract
+          Pangolin::tokenContracts[this->w.currentTokenName],
+          this->w.currentAccount, Pangolin::routerContract
         );
         std::string liquidityAllowance = Pangolin::allowance(
-          Pangolin::getPair(this->currentCoin, this->currentToken),
-          this->currentAccount, Pangolin::routerContract
+          Pangolin::getPair(this->w.currentCoinName, this->w.currentTokenName),
+          this->w.currentAccount, Pangolin::routerContract
         );
         std::string stakingAllowance = Pangolin::allowance(
-          Pangolin::getPair(this->currentCoin, this->currentToken),
-          this->currentAccount, Pangolin::stakingContract
+          Pangolin::getPair(this->w.currentCoinName, this->w.currentTokenName),
+          this->w.currentAccount, Pangolin::stakingContract
         );
         emit allowancesUpdated(
           QString::fromStdString(exchangeAllowance),
@@ -1236,7 +1263,7 @@ class System : public QObject {
       QVariantMap ret;
       std::string balanceLPFreeStr;
       for (Account &a : w.accounts) {
-        if (a.address == this->currentAccount) {
+        if (a.address == this->w.currentAccount) {
           a.balancesThreadLock.lock();
           balanceLPFreeStr = a.balanceLPFree;
           a.balancesThreadLock.unlock();
@@ -1298,7 +1325,7 @@ class System : public QObject {
       QVariantMap ret;
       std::string balanceLPFreeStr;
       for (Account &a : w.accounts) {
-        if (a.address == this->currentAccount) {
+        if (a.address == this->w.currentAccount) {
           a.balancesThreadLock.lock();
           balanceLPFreeStr = a.balanceLPFree;
           a.balancesThreadLock.unlock();
@@ -1330,8 +1357,8 @@ class System : public QObject {
     // Get the staking rewards for a given Account
     Q_INVOKABLE void getPoolReward() {
       QtConcurrent::run([=](){
-        std::string poolRewardWei = Staking::earned(this->currentAccount);
-        std::string poolReward = Utils::weiToFixedPoint(poolRewardWei, this->currentCoinDecimals);
+        std::string poolRewardWei = Staking::earned(this->w.currentAccount);
+        std::string poolReward = Utils::weiToFixedPoint(poolRewardWei, this->w.currentCoinDecimals);
         emit rewardUpdated(QString::fromStdString(poolReward));
       });
     }

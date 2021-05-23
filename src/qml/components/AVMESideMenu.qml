@@ -16,6 +16,10 @@ Rectangle {
   Connections {
     target: System
     function onGoToOverview() { itemSelection.y = itemOverview.y }
+    function onTokenChanged() {
+      itemExchange.visible = System.getCurrentTokenIsTradeable()
+      itemStaking.visible = (System.getCurrentTokenName() == "AVME")
+    }
   }
 
   function changeScreen(name) {
@@ -136,6 +140,7 @@ Rectangle {
       anchors.horizontalCenter: parent.horizontalCenter
       width: (parent.width - 10)
       height: 1
+      visible: itemExchange.visible
       color: "#4E525D"
     }
 
@@ -153,6 +158,7 @@ Rectangle {
       anchors.horizontalCenter: parent.horizontalCenter
       width: (parent.width - 10)
       height: 1
+      visible: itemStaking.visible
       color: "#4E525D"
     }
 

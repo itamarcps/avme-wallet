@@ -49,6 +49,14 @@ class Wallet {
 
   public:
     std::vector<Account> accounts;  // The list of Accounts that belong to this Wallet.
+    bool firstLoad;
+    std::string currentAccount;
+    std::string currentCoinName;
+    std::string currentTokenName;
+    std::string currentTokenAddress;
+    int currentCoinDecimals;
+    int currentTokenDecimals;
+    bool currentTokenIsTradeable;
 
     /**
      * Create a new Wallet, which should be loaded manually afterwards.
@@ -137,6 +145,13 @@ class Wallet {
     std::vector<std::tuple<std::string, std::string, int, std::string>> getTokenList();
 
     /**
+     * Get the default token (AVME) from the Wallet list.
+     * Creates the list beforehand if it doesn't already exist.
+     * Returns a tuple vector with the token info, or an empty vector on failure.
+     */
+    std::tuple<std::string, std::string, int, std::string> getDefaultToken();
+
+    /**
      * Add/remove a token to/from the list, respectively.
      * Returns true on success, false on failure.
      */
@@ -148,6 +163,12 @@ class Wallet {
      * Returns true on success, false on failure.
      */
     bool tokenIsAdded(std::string address);
+
+    /**
+     * Set the current token or the default token (AVME), respectively.
+     */
+    void setToken(std::string address, std::string symbol, int decimals);
+    void setDefaultToken();
 
     /**
      * Build a transaction from user data.

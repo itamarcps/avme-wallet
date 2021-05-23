@@ -5,16 +5,16 @@
 
 // TODO: change all addresses to mainnet once deployed
 
-std::string Pangolin::routerContract = "0x2D99ABD9008Dc933ff5c0CD271B88309593aB921";
-std::string Pangolin::stakingContract = "0xfCA717d68EE18526e2626267594625Ee4CEFc66F";
+std::string Pangolin::routerContract = "0x2d99abd9008dc933ff5c0cd271b88309593ab921";
+std::string Pangolin::stakingContract = "0xfca717d68ee18526e2626267594625ee4cefc66f";
 
 std::map<std::string, std::string> Pangolin::tokenContracts = {
-  {"WAVAX", "0xd00ae08403B9bbb9124bB305C09058E32C39A48c"},
-  {"AVME", "0x02aDedcfe78757C3d0a545CB0Cbd78a7d19eEE4f"},
+  {"WAVAX", "0xd00ae08403b9bbb9124bb305c09058e32c39a48c"},
+  {"AVME", "0x02adedcfe78757c3d0a545cb0cbd78a7d19eee4f"},
 };
 
 std::map<std::string, std::string> Pangolin::pairContracts = {
-  {"WAVAX-AVME", "0x0A7bc2Ab390774fE16610b3BA53748FDf4C6a955"},
+  {"WAVAX-AVME", "0x0a7bc2ab390774fe16610b3ba53748fdf4c6a955"},
 };
 
 std::map<std::string, std::string> Pangolin::ERC20Funcs = {

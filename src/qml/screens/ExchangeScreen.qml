@@ -68,7 +68,7 @@ Item {
     interval: 5000
     repeat: true
     onTriggered: {
-      System.updateExchangeData(System.getCurrentCoin(), System.getCurrentToken())
+      System.updateExchangeData(System.getCurrentCoinName(), System.getCurrentTokenName())
       calculateExchangeAmountOut()
     }
   }
@@ -78,13 +78,13 @@ Item {
     interval: 5000
     repeat: true
     onTriggered: {
-      System.updateLiquidityData(System.getCurrentCoin(), System.getCurrentToken())
+      System.updateLiquidityData(System.getCurrentCoinName(), System.getCurrentTokenName())
     }
   }
 
   function calculateExchangeAmountOut() {
     var amountIn = swapInput.text
-    var amountName = (coinToToken) ? System.getCurrentCoin() : System.getCurrentToken()
+    var amountName = (coinToToken) ? System.getCurrentCoinName() : System.getCurrentTokenName()
     var amountOut = ""
     if (amountName == lowerToken) {
       amountOut = System.calculateExchangeAmount(amountIn, lowerReserves, higherReserves)
@@ -97,7 +97,7 @@ Item {
   // For manual input
   function calculateAddLiquidityAmount(fromCoin) {
     var amountIn = (fromCoin) ? liquidityCoinInput.text : liquidityTokenInput.text
-    var amountName = (fromCoin) ? System.getCurrentCoin() : System.getCurrentToken()
+    var amountName = (fromCoin) ? System.getCurrentCoinName() : System.getCurrentTokenName()
     var maxAmountAVAX = System.getRealMaxAVAXAmount("250000", System.getAutomaticFee())
     var maxAmountAVME = System.getAccountBalances(System.getCurrentAccount()).balanceAVME
     var amountOut, coinAmount, tokenAmount
@@ -122,10 +122,10 @@ Item {
     var coinAmount, tokenAmount
 
     // Get the expected amounts for maxed values
-    if (lowerToken == System.getCurrentCoin()) {
+    if (lowerToken == System.getCurrentCoinName()) {
       tokenAmount = System.calculateAddLiquidityAmount(maxAmountAVAX, lowerReserves, higherReserves)
       coinAmount = System.calculateAddLiquidityAmount(maxAmountAVME, higherReserves, lowerReserves)
-    } else if (lowerToken == System.getCurrentToken()) {
+    } else if (lowerToken == System.getCurrentTokenName()) {
       coinAmount = System.calculateAddLiquidityAmount(maxAmountAVME, lowerReserves, higherReserves)
       tokenAmount = System.calculateAddLiquidityAmount(maxAmountAVAX, higherReserves, lowerReserves)
     }
@@ -141,12 +141,12 @@ Item {
     }
 
     // Set the values accordingly
-    if (lowerToken == System.getCurrentCoin()) {
+    if (lowerToken == System.getCurrentCoinName()) {
       liquidityCoinInput.text = maxAmountAVAX
       liquidityTokenInput.text = System.calculateAddLiquidityAmount(
         maxAmountAVAX, lowerReserves, higherReserves
       )
-    } else if (lowerToken == System.getCurrentToken()) {
+    } else if (lowerToken == System.getCurrentTokenName()) {
       liquidityTokenInput.text = maxAmountAVME
       liquidityCoinInput.text = System.calculateAddLiquidityAmount(
         maxAmountAVME, lowerReserves, higherReserves
@@ -156,8 +156,8 @@ Item {
 
   Component.onCompleted: {
     System.getAllowances()
-    System.updateExchangeData(System.getCurrentCoin(), System.getCurrentToken())
-    System.updateLiquidityData(System.getCurrentCoin(), System.getCurrentToken())
+    System.updateExchangeData(System.getCurrentCoinName(), System.getCurrentTokenName())
+    System.updateLiquidityData(System.getCurrentCoinName(), System.getCurrentTokenName())
     calculateExchangeAmountOut()
     reloadExchangeDataTimer.start()
     reloadLiquidityDataTimer.start()
@@ -197,7 +197,9 @@ Item {
         color: "#FFFFFF"
         font.bold: true
         font.pixelSize: 24.0
-        text: (coinToToken) ? "Swap AVAX -> AVME" : "Swap AVME -> AVAX"
+        text: (coinToToken)
+        ? "Swap AVAX -> " + System.getCurrentTokenName()
+        : "Swap " + System.getCurrentTokenName() + " -> AVAX"
       }
 
       Row {
@@ -213,7 +215,7 @@ Item {
           antialiasing: true
           smooth: true
           anchors.margins: 20
-          source: (coinToToken) ? "qrc:/img/avax_logo.png" : "qrc:/img/avme_logo.png"
+          source: (coinToToken) ? "qrc:/img/avax_logo.png" : System.getCurrentTokenIcon()
           fillMode: Image.PreserveAspectFit
         }
 
@@ -232,7 +234,7 @@ Item {
           antialiasing: true
           smooth: true
           anchors.margins: 20
-          source: (!coinToToken) ? "qrc:/img/avax_logo.png" : "qrc:/img/avme_logo.png"
+          source: (!coinToToken) ? "qrc:/img/avax_logo.png" : System.getCurrentTokenIcon()
           fillMode: Image.PreserveAspectFit
         }
       }
@@ -259,20 +261,20 @@ Item {
           regExp: (coinToToken) ? System.createCoinRegExp() : System.createTokenRegExp()
         }
         label: "Amount of " + (
-          (coinToToken) ? System.getCurrentCoin() : System.getCurrentToken()
+          (coinToToken) ? System.getCurrentCoinName() : System.getCurrentTokenName()
         ) + " to swap"
         placeholder: "Fixed point amount (e.g. 0.5)"
         onTextEdited: {
           calculateExchangeAmountOut()
           if (coinToToken) {
             swapImpact = System.calculateExchangePriceImpact(
-              ((System.getCurrentCoin() == lowerToken) ? lowerReserves : higherReserves),
-              swapInput.text, System.getCurrentCoinDecimals()
+              ((System.getCurrentCoinName() == lowerToken) ? lowerReserves : higherReserves),
+              swapInput.text, System.getCurrentCoinNameDecimals()
             )
           } else {
             swapImpact = System.calculateExchangePriceImpact(
-              ((System.getCurrentToken() == lowerToken) ? lowerReserves : higherReserves),
-              swapInput.text, System.getCurrentTokenDecimals()
+              ((System.getCurrentTokenName() == lowerToken) ? lowerReserves : higherReserves),
+              swapInput.text, System.getCurrentTokenNameDecimals()
             )
           }
         }
@@ -294,13 +296,13 @@ Item {
             calculateExchangeAmountOut()
             if (coinToToken) {
               swapImpact = System.calculateExchangePriceImpact(
-                ((System.getCurrentCoin() == lowerToken) ? lowerReserves : higherReserves),
-                swapInput.text, System.getCurrentCoinDecimals()
+                ((System.getCurrentCoinName() == lowerToken) ? lowerReserves : higherReserves),
+                swapInput.text, System.getCurrentCoinNameDecimals()
               )
             } else {
               swapImpact = System.calculateExchangePriceImpact(
-                ((System.getCurrentToken() == lowerToken) ? lowerReserves : higherReserves),
-                swapInput.text, System.getCurrentTokenDecimals()
+                ((System.getCurrentTokenName() == lowerToken) ? lowerReserves : higherReserves),
+                swapInput.text, System.getCurrentTokenNameDecimals()
               )
             }
           }
@@ -316,7 +318,7 @@ Item {
         color: "#FFFFFF"
         font.pixelSize: 18.0
         text: "Estimated return in " + (
-          (!coinToToken) ? System.getCurrentCoin() : System.getCurrentToken()
+          (!coinToToken) ? System.getCurrentCoinName() : System.getCurrentTokenName()
         ) + ":<br><b>" + swapEstimate + "</b>"
       }
 
@@ -491,7 +493,7 @@ Item {
           antialiasing: true
           smooth: true
           anchors.margins: 20
-          source: "qrc:/img/avme_logo.png"
+          source: System.getCurrentTokenIcon()
         }
       }
 
@@ -509,7 +511,7 @@ Item {
         enabled: (addAllowance != "")
         visible: (addToPool)
         validator: RegExpValidator { regExp: System.createCoinRegExp() }
-        label: "Amount of " + System.getCurrentCoin() + " to add"
+        label: "Amount of " + System.getCurrentCoinName() + " to add"
         placeholder: "Fixed point amount (e.g. 0.5)"
         onTextEdited: calculateAddLiquidityAmount(true)
       }
@@ -520,7 +522,7 @@ Item {
         enabled: (addAllowance != "")
         visible: (addToPool)
         validator: RegExpValidator { regExp: System.createTokenRegExp() }
-        label: "Amount of " + System.getCurrentToken() + " to add"
+        label: "Amount of " + System.getCurrentTokenName() + " to add"
         placeholder: "Fixed point amount (e.g. 0.5)"
         onTextEdited: calculateAddLiquidityAmount(false)
       }
@@ -616,13 +618,13 @@ Item {
         text: "Estimated returns:"
         + "<br><b>" + ((removeLPEstimate) ? removeLPEstimate : "0") + " LP"
         + "<br>" + System.weiToFixedPoint(
-          ((System.getCurrentCoin() == lowerToken) ? removeLowerEstimate : removeHigherEstimate),
-          System.getCurrentCoinDecimals()
-        ) + " " + System.getCurrentCoin()
+          ((System.getCurrentCoinName() == lowerToken) ? removeLowerEstimate : removeHigherEstimate),
+          System.getCurrentCoinNameDecimals()
+        ) + " " + System.getCurrentCoinName()
         + "<br>" + System.weiToFixedPoint(
-          ((System.getCurrentToken() == lowerToken) ? removeLowerEstimate : removeHigherEstimate),
-          System.getCurrentTokenDecimals()
-        ) + " " + System.getCurrentToken() + "</b>"
+          ((System.getCurrentTokenName() == lowerToken) ? removeLowerEstimate : removeHigherEstimate),
+          System.getCurrentTokenNameDecimals()
+        ) + " " + System.getCurrentTokenName() + "</b>"
       }
 
       AVMEButton {

@@ -20,14 +20,9 @@ Item {
     target: System
     function onAccountCreated(obj) {
       // Always default to AVAX & AVME on first load
-      if (System.getCurrentCoin() == "") {
-        System.setCurrentCoin("AVAX")
-        System.setCurrentCoinDecimals(18)
-      }
-      if (System.getCurrentToken() == "") {
-        System.setCurrentToken("AVME")
-        System.setCurrentTokenDecimals(18)
-      }
+      System.setCurrentCoinName("AVAX")
+      System.setCurrentCoinDecimals(18);
+      System.setDefaultToken();
       System.setCurrentAccount(obj.accAddress)
       System.setFirstLoad(true)
       System.loadAccounts()
@@ -441,14 +436,9 @@ Item {
               }
               console.log("Wallet loaded successfully")
               // Always default to AVAX & AVME on first load
-              if (System.getCurrentCoin() == "") {
-                System.setCurrentCoin("AVAX")
-                System.setCurrentCoinDecimals(18)
-              }
-              if (System.getCurrentToken() == "") {
-                System.setCurrentToken("AVME")
-                System.setCurrentTokenDecimals(18)
-              }
+              System.setCurrentCoinName("AVAX")
+              System.setCurrentCoinDecimals(18);
+              System.setDefaultToken();
               System.setFirstLoad(true)
               System.setScreen(content, "qml/screens/AccountsScreen.qml")
             } catch (error) {

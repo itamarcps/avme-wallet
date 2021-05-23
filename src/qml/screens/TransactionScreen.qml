@@ -207,8 +207,8 @@ Item {
           }
           visible: (txOperationStr == "Send AVAX" || txOperationStr == "Send AVME")
           text: (txOperationStr == "Send AVAX")
-          ? "Switch to " + System.getCurrentToken()
-          : "Switch to " + System.getCurrentCoin()
+          ? "Switch to " + System.getCurrentTokenName()
+          : "Switch to " + System.getCurrentCoinName()
           onClicked: {
             if (txOperationStr == "Send AVAX") {
               changeOperation("Send AVME")
@@ -240,7 +240,7 @@ Item {
         id: txAmountCoinInput
         width: (parent.width * 0.8)
         validator: RegExpValidator { regExp: System.createCoinRegExp() }
-        label: System.getCurrentCoin() + " Amount"
+        label: System.getCurrentCoinName() + " Amount"
         placeholder: "Fixed point amount (e.g. 0.5)"
         onTextEdited: updateTxCost()
 
@@ -265,7 +265,7 @@ Item {
         id: txAmountTokenInput
         width: (parent.width * 0.8)
         validator: RegExpValidator { regExp: System.createTokenRegExp() }
-        label: System.getCurrentToken() + " Amount"
+        label: System.getCurrentTokenName() + " Amount"
         placeholder: "Fixed point amount (e.g. 0.5)"
         onTextEdited: updateTxCost()
 
@@ -465,10 +465,10 @@ Item {
               text: "via Pangolin";
               break;
             case "Add Liquidity":
-              text: "to the " + System.getCurrentCoin() + "/" + System.getCurrentToken() + " pool";
+              text: "to the " + System.getCurrentCoinName() + "/" + System.getCurrentTokenName() + " pool";
               break;
             case "Remove Liquidity":
-              text: "from the " + System.getCurrentCoin() + "/" + System.getCurrentToken() + " pool";
+              text: "from the " + System.getCurrentCoinName() + "/" + System.getCurrentTokenName() + " pool";
               break;
             case "Stake LP":
               text: "in the staking contract";
@@ -507,19 +507,19 @@ Item {
           switch (txOperationStr) {
             case "Send AVAX":
             case "Swap AVAX -> AVME":
-              text: txAmountCoinInput.text + " " + System.getCurrentCoin()
+              text: txAmountCoinInput.text + " " + System.getCurrentCoinName()
               + "<br>Gas Limit: " + System.weiToFixedPoint(txGasLimitInput.text, 18)
-              + " " + System.getCurrentCoin()
+              + " " + System.getCurrentCoinName()
               + "<br>Gas Price: " + System.weiToFixedPoint(txGasPriceInput.text, 9)
-              + " " + System.getCurrentCoin();
+              + " " + System.getCurrentCoinName();
               break;
             case "Send AVME":
             case "Swap AVME -> AVAX":
-              text: txAmountTokenInput.text + " " + System.getCurrentToken()
+              text: txAmountTokenInput.text + " " + System.getCurrentTokenName()
               + "<br>Gas Limit: " + System.weiToFixedPoint(txGasLimitInput.text, 18)
-              + " " + System.getCurrentCoin()
+              + " " + System.getCurrentCoinName()
               + "<br>Gas Price: " + System.weiToFixedPoint(txGasPriceInput.text, 9)
-              + " " + System.getCurrentCoin();
+              + " " + System.getCurrentCoinName();
               break;
             case "Approve Exchange":
             case "Approve Liquidity":
@@ -527,26 +527,26 @@ Item {
             case "Harvest AVME":
             case "Exit Staking":
               text: "Gas Limit: " + System.weiToFixedPoint(txGasLimitInput.text, 18)
-              + " " + System.getCurrentCoin()
+              + " " + System.getCurrentCoinName()
               + "<br>Gas Price: " + System.weiToFixedPoint(txGasPriceInput.text, 9)
-              + " " + System.getCurrentCoin();
+              + " " + System.getCurrentCoinName();
               break;
             case "Add Liquidity":
-              text: txAmountCoinInput.text + " " + System.getCurrentCoin()
-              + "<br>" + txAmountTokenInput.text + " " + System.getCurrentToken()
+              text: txAmountCoinInput.text + " " + System.getCurrentCoinName()
+              + "<br>" + txAmountTokenInput.text + " " + System.getCurrentTokenName()
               + "<br>Gas Limit: " + System.weiToFixedPoint(txGasLimitInput.text, 18)
-              + " " + System.getCurrentCoin()
+              + " " + System.getCurrentCoinName()
               + "<br>Gas Price: " + System.weiToFixedPoint(txGasPriceInput.text, 9)
-              + " " + System.getCurrentCoin();
+              + " " + System.getCurrentCoinName();
               break;
             case "Remove Liquidity":
             case "Stake LP":
             case "Unstake LP":
               text: txAmountLPInput.text + " LP"
               + "<br>Gas Limit: " + System.weiToFixedPoint(txGasLimitInput.text, 18)
-              + " " + System.getCurrentCoin()
+              + " " + System.getCurrentCoinName()
               + "<br>Gas Price: " + System.weiToFixedPoint(txGasPriceInput.text, 9)
-              + " " + System.getCurrentCoin();
+              + " " + System.getCurrentCoinName();
               break;
           }
         }
@@ -579,18 +579,18 @@ Item {
             case "Swap AVAX -> AVME":
             case "Harvest AVME":
             case "Exit Staking":
-              text: txTotalCoinStr + " " + System.getCurrentCoin();
+              text: txTotalCoinStr + " " + System.getCurrentCoinName();
               break;
             case "Send AVME":
             case "Swap AVME -> AVAX":
             case "Add Liquidity":
-              text: txTotalCoinStr + " " + System.getCurrentCoin()
-              + "<br>" + txTotalTokenStr + " " + System.getCurrentToken();
+              text: txTotalCoinStr + " " + System.getCurrentCoinName()
+              + "<br>" + txTotalTokenStr + " " + System.getCurrentTokenName();
               break;
             case "Remove Liquidity":
             case "Stake LP":
             case "Unstake LP":
-              text: txTotalCoinStr + " " + System.getCurrentCoin()
+              text: txTotalCoinStr + " " + System.getCurrentCoinName()
               + "<br>" + txTotalLPStr + " LP";
               break;
           }
