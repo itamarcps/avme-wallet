@@ -29,8 +29,11 @@
 #include <libethcore/TransactionBase.h>
 
 #include "API.h"
+#include "Coin.h"
+#include "Graph.h"
 #include "JSON.h"
 #include "Pangolin.h"
+#include "Token.h"
 #include "Utils.h"
 
 using namespace dev::eth; // TransactionBase
@@ -44,11 +47,15 @@ class Account {
     std::string id;
     std::string name;
     std::string address;
+    std::vector<TxData> history;
+    Coin currentCoin;
+    Token currentToken;
+
     std::string balanceAVAX;
     std::string balanceAVME;
     std::string balanceLPFree;
     std::string balanceLPLocked;
-    std::vector<TxData> history;
+
     std::atomic_bool balancesThreadFlag;
     std::mutex balancesThreadLock;
     boost::thread balancesThread;
@@ -73,14 +80,42 @@ class Account {
       this->address = address;
       loadTxHistory();
     }
+    Account& operator=(const Account& acc) {
+      this->id = acc.id;
+      this->name = acc.name;
+      this->address = acc.address;
+      this->balanceAVAX = acc.balanceAVAX;
+      this->balanceAVME = acc.balanceAVME;
+      this->balanceLPFree = acc.balanceLPFree;
+      this->balanceLPLocked = acc.balanceLPLocked;
+      this->history = acc.history;
+      return *this;
+    }
 
-    // Reload an Account's balances.
-    static void reloadBalances(Account &a);
+    // =======================================================================
+    // ACCOUNT DATA MANAGEMENT
+    // =======================================================================
+
+    // Set the current coin and token, or their defaults (AVAX & AVME), respectively.
+    void setCoin(Coin& c);
+    void setToken(Token& t);
+    void setDefaultCoin();
+    void setDefaultToken();
+
+    // Threads for reloading Account balances.
+    static void reloadCoinBalance(Account &a);
+    static void reloadTokenBalance(Account &a);
+    static void reloadFreeLPBalance(Account &a);
+    static void reloadLockedLPBalance(Account &a);
 
     // Handle a thread for reloading Account balances.
     static void balanceThreadHandler(Account &a);
     static void startBalancesThread(Account &a);
     static void stopBalancesThread(Account &a);
+
+    // =======================================================================
+    // TRANSACTION HISTORY MANAGEMENT
+    // =======================================================================
 
     // Convert the transaction history to a JSON array.
     json_spirit::mArray txDataToJSON();

@@ -15,7 +15,7 @@ Item {
     target: System
     function onAccountCreated(data) {
       createAccountPopup.close()
-      reloadList()
+      fetchAccounts()
     }
     function onAccountCreationFailed() {
       createAccountPopup.close()
@@ -23,49 +23,16 @@ Item {
     }
   }
 
-  Component.onCompleted: {
-    if (System.getFirstLoad()) {
-      System.setFirstLoad(false)
-      reloadList()
-    } else {
-      fetchAccounts()
-    }
-  }
+  Component.onCompleted: fetchAccounts()
 
-  // Timer for reloading the Account balances on the list
-  Timer {
-    id: listReloadTimer
-    interval: 1000
-    repeat: true
-    onTriggered: reloadBalances()
-  }
-
-  // Helpers for manipulating the Account list
-  function reloadList() {
-    console.log("Reloading list...")
-    fetchAccountsPopup.open()
-    System.stopAllBalanceThreads()
-    listReloadTimer.stop()
-    System.loadAccounts()
-    fetchAccounts()
-    System.startAllBalanceThreads()
-    listReloadTimer.start()
-    fetchAccountsPopup.close()
-  }
-
+  // Helper to get the Wallet's Accounts
+  // TODO: get AVAX balance only here
   function fetchAccounts() {
     console.log("Fetching Accounts...")
     accountsList.clear()
-    var accList = System.listAccounts()
+    var accList = System.getAccounts()
     for (var i = 0; i < accList.length; i++) {
       accountsList.append(JSON.parse(accList[i]))
-    }
-  }
-
-  function reloadBalances() {
-    var accList = System.listAccounts()
-    for (var i = 0; i < accList.length; i++) {
-      accountsList.set(i, JSON.parse(accList[i]))
     }
   }
 
@@ -142,6 +109,8 @@ Item {
       text: "Use this Account"
       onClicked: {
         System.setCurrentAccount(walletList.currentItem.itemAccount)
+        System.setDefaultCoin();
+        System.setDefaultToken();
         listReloadTimer.stop()
         System.goToOverview();
         System.setScreen(content, "qml/screens/OverviewScreen.qml")
@@ -170,7 +139,6 @@ Item {
         infoTimer.start()
       } else {
         try {
-          System.stopAllBalanceThreads()
           listReloadTimer.stop()
           chooseAccountPopup.close()
           System.createAccount(foreignSeed, index, name, pass)
@@ -249,12 +217,11 @@ Item {
     yesBtn.onClicked: {
       if (System.checkWalletPass(erasePassInput.text)) {
         if (System.eraseAccount(walletList.currentItem.itemAccount)) {
-          System.stopAllBalanceThreads()
           listReloadTimer.stop()
           erasePopup.close()
           erasePopup.account = ""
           erasePassInput.text = ""
-          reloadList()
+          fetchAccounts()
         } else {
           erasePopup.close()
           erasePopup.account = ""

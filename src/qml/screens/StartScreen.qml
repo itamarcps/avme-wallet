@@ -20,14 +20,11 @@ Item {
     target: System
     function onAccountCreated(obj) {
       // Always default to AVAX & AVME on first load
+      // TODO: fix this
+      System.setCurrentAccount(obj.accAddress)
       System.setCurrentCoinName("AVAX")
       System.setCurrentCoinDecimals(18);
-      System.setDefaultToken();
-      System.setCurrentAccount(obj.accAddress)
-      System.setFirstLoad(true)
       System.loadAccounts()
-      System.startAllBalanceThreads()
-      while (!System.accountHasBalances(obj.accAddress)) {} // This is ugly but hey it works
       walletNewPopup.close()
       System.goToOverview();
       System.setScreen(content, "qml/screens/OverviewScreen.qml")
@@ -310,10 +307,7 @@ Item {
                 }
                 console.log("Wallet imported successfully, now loading it...")
               }
-              if (System.isWalletLoaded()) {
-                System.stopAllBalanceThreads()
-                System.closeWallet()
-              }
+              if (System.isWalletLoaded()) { System.closeWallet() }
               if (!System.loadWallet(createFolderInput.text, createPassInput.text)) {
                 throw "Error on Wallet loading. Please check"
                 + "<br>the folder path and/or passphrase.";
@@ -426,20 +420,12 @@ Item {
           text: (loadWalletExists) ? "Load Wallet" : "No Wallet found"
           onClicked: {
             try {
-              if (System.isWalletLoaded()) {
-                System.stopAllBalanceThreads()
-                System.closeWallet()
-              }
+              if (System.isWalletLoaded()) { System.closeWallet() }
               if (!System.loadWallet(loadFolderInput.text, loadPassInput.text)) {
                 throw "Error on Wallet loading. Please check"
                 + "<br>the folder path and/or passphrase.";
               }
               console.log("Wallet loaded successfully")
-              // Always default to AVAX & AVME on first load
-              System.setCurrentCoinName("AVAX")
-              System.setCurrentCoinDecimals(18);
-              System.setDefaultToken();
-              System.setFirstLoad(true)
               System.setScreen(content, "qml/screens/AccountsScreen.qml")
             } catch (error) {
               walletFailPopup.info = error.toString()

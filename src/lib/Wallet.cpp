@@ -41,7 +41,7 @@ bool Wallet::load(boost::filesystem::path folder, std::string pass) {
 }
 
 void Wallet::close() {
-  this->accounts.clear();
+  this->currentAccount = Account();
   this->passHash = bytesSec();
   this->passSalt = h256();
   this->km = KeyManager();
@@ -57,7 +57,36 @@ bool Wallet::auth(std::string pass) {
   return (hash.ref().toString() == passHash.ref().toString());
 }
 
-Account Wallet::createAccount(
+std::map<std::string, std::string> Wallet::getAccounts() {
+  std::map<std::string, std::string> ret;
+  if (this->km.store().keys().empty()) { return ret; }
+  std::vector<h128> keys = this->km.store().keys();
+  for (auto const& u : keys) {
+    if (Address a = this->km.address(u)) {
+      ret.insert(std::make_pair(
+        "0x" + boost::lexical_cast<std::string>(a), this->km.accountName(a)
+      ));
+    }
+  }
+  return ret;
+}
+
+void Wallet::setAccount(std::string address) {
+  // Remove the "0x" if it's there
+  if (address.substr(0, 2) == "0x") { address = address.substr(2); }
+  std::vector<h128> keys = this->km.store().keys();
+  for (auto const& u : keys) {
+    if (Address a = this->km.address(u)) {
+      this->currentAccount = Account(
+        toUUID(u), this->km.accountName(a), "0x" + boost::lexical_cast<std::string>(a)
+      );
+      break;
+    }
+  }
+  return;
+}
+
+bool Wallet::createAccount(
   std::string &seed, int64_t index, std::string name, std::string &pass
 ) {
   bip3x::Bip39Mnemonic::MnemonicResult mnemonic;
@@ -65,48 +94,13 @@ Account Wallet::createAccount(
     mnemonic.raw = seed;
   } else {  // Using the Wallet's own seed
     std::pair<bool,std::string> seedSuccess = BIP39::loadEncryptedMnemonic(mnemonic, pass);
-    if (!seedSuccess.first) { return Account(); }
+    if (!seedSuccess.first) { return false; }
   }
   std::string indexStr = boost::lexical_cast<std::string>(index);
   bip3x::HDKey keyPair = BIP39::createKey(mnemonic.raw, "m/44'/60'/0'/0/" + indexStr);
   KeyPair k(Secret::frombip3x(keyPair.privateKey));
   h128 u = this->km.import(k.secret(), name, pass, "");
-  return Account(toUUID(u), name, k.address().hex());
-}
-
-void Wallet::loadAccounts() {
-  this->accounts.clear();
-  if (this->km.store().keys().empty()) { return; }
-  AddressHash got;
-  std::vector<h128> keys = this->km.store().keys();
-  for (auto const& u : keys) {
-    if (Address a = this->km.address(u)) {
-      got.insert(a);
-      Account acc(toUUID(u), this->km.accountName(a),
-        "0x" + boost::lexical_cast<std::string>(a));
-      this->accounts.push_back(acc);
-    }
-  }
-}
-
-Account Wallet::getAccountByName(std::string name) {
-  for (int i = 0; i < this->accounts.size(); i++) {
-    if (this->accounts[i].name == name) {
-      return this->accounts[i];
-    }
-  }
-  return Account();
-}
-
-Account Wallet::getAccountByAddress(std::string address) {
-  // Add the "0x" if it's missing
-  if (address.substr(0, 2) != "0x") { address.insert(0, "0x"); }
-  for (int i = 0; i < this->accounts.size(); i++) {
-    if (this->accounts[i].address == address) {
-      return this->accounts[i];
-    }
-  }
-  return Account();
+  return true;
 }
 
 bool Wallet::eraseAccount(std::string account) {
@@ -158,32 +152,42 @@ Secret Wallet::getSecret(std::string const& address, std::string pass) {
   }
 }
 
-std::vector<std::tuple<std::string, std::string, int, std::string>> Wallet::getTokenList() {
-  std::vector<std::tuple<std::string, std::string, int, std::string>> ret;
+bool Wallet::createTokenList() {
+  boost::filesystem::path tokenFilePath = Utils::walletFolderPath.string()
+    + "/wallet/c-avax/tokens/tokens.json";
+  create_directories(tokenFilePath.parent_path());
+  json_spirit::mObject tokenRoot, defaultToken;
+  json_spirit::mArray tokenArray;
+  defaultToken["type"] = Token::Type::ERC20;
+  defaultToken["address"] = Pangolin::tokenContracts["AVME"];
+  defaultToken["name"] = "AV Me";
+  defaultToken["symbol"] = "AVME";
+  defaultToken["decimals"] = 18;
+  defaultToken["icon"] = "";
+  tokenArray.push_back(defaultToken);
+  tokenRoot["tokens"] = tokenArray;
+  json_spirit::mValue success = JSON::writeFile(tokenRoot, tokenFilePath);
+  return success.get_bool();
+}
+
+std::vector<Token> Wallet::getTokenList() {
+  std::vector<Token> ret;
   boost::filesystem::path tokenFilePath = Utils::walletFolderPath.string()
     + "/wallet/c-avax/tokens/tokens.json";
   if (!exists(tokenFilePath.parent_path()) || !exists(tokenFilePath)) {
-    create_directories(tokenFilePath.parent_path());
-    json_spirit::mObject tokenRoot, defaultToken;
-    json_spirit::mArray tokenArray;
-    defaultToken["address"] = Pangolin::tokenContracts["AVME"];
-    defaultToken["symbol"] = "AVME";
-    defaultToken["decimals"] = 18;
-    defaultToken["image"] = "";
-    tokenArray.push_back(defaultToken);
-    tokenRoot["tokens"] = tokenArray;
-    json_spirit::mValue success = JSON::writeFile(tokenRoot, tokenFilePath);
+    if (!createTokenList()) { return {}; }
   }
-
   json_spirit::mValue tokenData = JSON::readFile(tokenFilePath);
   try {
     json_spirit::mValue tokenArray = JSON::objectItem(tokenData, "tokens");
     for (int i = 0; i < tokenArray.get_array().size(); ++i) {
+      Token::Type type = (Token::Type) JSON::objectItem(JSON::arrayItem(tokenArray, i), "type").get_int();
       std::string address = JSON::objectItem(JSON::arrayItem(tokenArray, i), "address").get_str();
+      std::string name = JSON::objectItem(JSON::arrayItem(tokenArray, i), "name").get_str();
       std::string symbol = JSON::objectItem(JSON::arrayItem(tokenArray, i), "symbol").get_str();
       int decimals = JSON::objectItem(JSON::arrayItem(tokenArray, i), "decimals").get_int();
-      std::string image = JSON::objectItem(JSON::arrayItem(tokenArray, i), "image").get_str();
-      ret.push_back(std::make_tuple(address, symbol, decimals, image));
+      std::string icon = JSON::objectItem(JSON::arrayItem(tokenArray, i), "icon").get_str();
+      ret.push_back(Token(type, address, name, symbol, decimals, icon));
     }
   } catch (std::exception &e) {
     Utils::logToDebug(std::string("Couldn't load token list from Wallet: ")
@@ -197,7 +201,33 @@ std::vector<std::tuple<std::string, std::string, int, std::string>> Wallet::getT
   return ret;
 }
 
-bool Wallet::addTokenToList(std::string address, std::string symbol, int decimals) {
+Token Wallet::getTokenByAddress(std::string address) {
+  boost::filesystem::path tokenFilePath = Utils::walletFolderPath.string()
+    + "/wallet/c-avax/tokens/tokens.json";
+  json_spirit::mObject tokenRoot;
+  json_spirit::mArray tokenArray;
+  json_spirit::mValue tokenData = JSON::readFile(tokenFilePath);
+
+  tokenArray = JSON::objectItem(tokenData, "tokens").get_array();
+  for (int i = 0; i < tokenArray.size(); ++i) {
+    std::string arrayAddress = JSON::objectItem(JSON::arrayItem(tokenArray, i), "address").get_str();
+    if (arrayAddress == address) {
+      Token::Type type = (Token::Type) JSON::objectItem(JSON::arrayItem(tokenArray, i), "type").get_int();
+      std::string address = JSON::objectItem(JSON::arrayItem(tokenArray, i), "address").get_str();
+      std::string name = JSON::objectItem(JSON::arrayItem(tokenArray, i), "name").get_str();
+      std::string symbol = JSON::objectItem(JSON::arrayItem(tokenArray, i), "symbol").get_str();
+      int decimals = JSON::objectItem(JSON::arrayItem(tokenArray, i), "decimals").get_int();
+      std::string icon = JSON::objectItem(JSON::arrayItem(tokenArray, i), "icon").get_str();
+      return Token(type, address, name, symbol, decimals, icon);
+    }
+  }
+  return Token();
+}
+
+bool Wallet::addTokenToList(
+  Token::Type type, std::string address, std::string name,
+  std::string symbol, int decimals, std::string icon
+) {
   boost::filesystem::path tokenFilePath = Utils::walletFolderPath.string()
     + "/wallet/c-avax/tokens/tokens.json";
   json_spirit::mObject tokenRoot, newToken;
@@ -205,12 +235,12 @@ bool Wallet::addTokenToList(std::string address, std::string symbol, int decimal
   json_spirit::mValue tokenData = JSON::readFile(tokenFilePath);
 
   tokenArray = JSON::objectItem(tokenData, "tokens").get_array();
+  newToken["type"] = type;
   newToken["address"] = address;
+  newToken["name"] = name;
   newToken["symbol"] = symbol;
   newToken["decimals"] = decimals;
-  boost::filesystem::path iconPath = Utils::walletFolderPath.string()
-    + "/wallet/c-avax/tokens/" + symbol + ".png";
-  newToken["image"] = (exists(iconPath)) ? iconPath.string() : "";
+  newToken["icon"] = icon;
   tokenArray.push_back(newToken);
   tokenRoot["tokens"] = tokenArray;
   json_spirit::mValue success = JSON::writeFile(tokenRoot, tokenFilePath);
@@ -270,34 +300,6 @@ bool Wallet::tokenIsAdded(std::string address) {
     }
   }
   return false;
-}
-
-void Wallet::setToken(std::string address, std::string symbol, int decimals) {
-  this->currentTokenAddress = address;
-  this->currentTokenName = symbol;
-  this->currentTokenDecimals = decimals;
-}
-
-void Wallet::setDefaultToken() {
-  json_spirit::mObject defaultToken;
-  defaultToken["address"] = Pangolin::tokenContracts["AVME"];
-  defaultToken["symbol"] = "AVME";
-  defaultToken["decimals"] = 18;
-  defaultToken["image"] = "";
-  boost::filesystem::path tokenFilePath = Utils::walletFolderPath.string()
-    + "/wallet/c-avax/tokens/tokens.json";
-  if (!exists(tokenFilePath.parent_path()) || !exists(tokenFilePath)) {
-    create_directories(tokenFilePath.parent_path());
-    json_spirit::mObject tokenRoot;
-    json_spirit::mArray tokenArray;
-    tokenArray.push_back(defaultToken);
-    tokenRoot["tokens"] = tokenArray;
-    JSON::writeFile(tokenRoot, tokenFilePath);
-  }
-  this->currentTokenAddress = defaultToken["address"].get_str();
-  this->currentTokenName = defaultToken["symbol"].get_str();
-  this->currentTokenDecimals = defaultToken["decimals"].get_int();
-  this->currentTokenIsTradeable = true;
 }
 
 TransactionSkeleton Wallet::buildTransaction(
@@ -365,9 +367,8 @@ std::string Wallet::sendTransaction(std::string txidHex, std::string operation) 
   TxData txData = Utils::decodeRawTransaction(txidHex);
   txData.txlink = txLink;
   txData.operation = operation;
-  Account a = getAccountByAddress(txData.from);
-  a.saveTxToHistory(txData);
-  a.updateAllTxStatus();
+  this->currentAccount.saveTxToHistory(txData);
+  this->currentAccount.updateAllTxStatus();
   return txLink;
 }
 

@@ -29,7 +29,9 @@
 #include "Account.h"
 #include "API.h"
 #include "BIP39.h"
+#include "Coin.h"
 #include "Utils.h"
+#include "Token.h"
 
 using namespace dev;  // u256
 using namespace dev::eth;
@@ -48,15 +50,11 @@ class Wallet {
     int passIterations = 100000;
 
   public:
-    std::vector<Account> accounts;  // The list of Accounts that belong to this Wallet.
-    bool firstLoad;
-    std::string currentAccount;
-    std::string currentCoinName;
-    std::string currentTokenName;
-    std::string currentTokenAddress;
-    int currentCoinDecimals;
-    int currentTokenDecimals;
-    bool currentTokenIsTradeable;
+    Account currentAccount;  // The selected Account
+
+    // =======================================================================
+    // WALLET MANAGEMENT
+    // =======================================================================
 
     /**
      * Create a new Wallet, which should be loaded manually afterwards.
@@ -89,30 +87,33 @@ class Wallet {
      */
     bool auth(std::string pass);
 
+    // =======================================================================
+    // ACCOUNT MANAGEMENT
+    // =======================================================================
+
     /**
-     * Create/import an Account in the Wallet, based on a given seed and index.
-     * Returns a struct with the Account's data, or an empty struct on failure.
+     * Get a list of existing Accounts in the Wallet.
+     * Returns a map with the address and name of each Account, or
+     * an empty map on failure.
      */
-    Account createAccount(
+    std::map<std::string, std::string> getAccounts();
+
+    /**
+     * Set the current Account.
+     */
+    void setAccount(std::string address);
+
+    /**
+     * Create/import an Account in the Wallet, based on a given seed and index,
+     * and automatically reload the list.
+     * Returns true on success, false on failure.
+     */
+    bool createAccount(
       std::string &seed, int64_t index, std::string name, std::string &pass
     );
 
     /**
-     * Load the Wallet's Accounts and their coin and token balances.
-     * Tokens are loaded from their proper contract address, beside their
-     * respective Wallet Accounts.
-     */
-    void loadAccounts();
-
-    /**
-     * Get an Account from the list using its name or address, respectively.
-     * Returns the initialized Account object, or an "empty" one if not found.
-     */
-    Account getAccountByName(std::string name);
-    Account getAccountByAddress(std::string address);
-
-    /**
-     * Erase an Account from the Wallet.
+     * Erase an Account from the Wallet and automatically reload the list.
      * Returns true on success, false on failure.
      */
     bool eraseAccount(std::string account);
@@ -137,25 +138,37 @@ class Wallet {
      */
     Secret getSecret(std::string const& account, std::string pass);
 
+    // =======================================================================
+    // TOKEN LIST MANAGEMENT
+    // =======================================================================
+
+    /**
+     * Create the token list with the default token (AVME) if it doesn't exist.
+     * Returns true on success, false on failure.
+     */
+    bool createTokenList();
+
     /**
      * Get the list of registered tokens for the Wallet.
      * Creates the list beforehand if it doesn't already exist.
      * Returns a tuple vector with the token info, or an empty vector on failure.
      */
-    std::vector<std::tuple<std::string, std::string, int, std::string>> getTokenList();
+    std::vector<Token> getTokenList();
 
     /**
-     * Get the default token (AVME) from the Wallet list.
-     * Creates the list beforehand if it doesn't already exist.
-     * Returns a tuple vector with the token info, or an empty vector on failure.
+     * Get a specific token from the Wallet list.
+     * Returns the token object, or an empty token object on failure.
      */
-    std::tuple<std::string, std::string, int, std::string> getDefaultToken();
+    Token getTokenByAddress(std::string address);
 
     /**
      * Add/remove a token to/from the list, respectively.
      * Returns true on success, false on failure.
      */
-    bool addTokenToList(std::string address, std::string symbol, int decimals);
+    bool addTokenToList(
+      Token::Type type, std::string address, std::string name,
+      std::string symbol, int decimals, std::string icon
+    );
     bool removeTokenFromList(std::string address);
 
     /**
@@ -164,11 +177,9 @@ class Wallet {
      */
     bool tokenIsAdded(std::string address);
 
-    /**
-     * Set the current token or the default token (AVME), respectively.
-     */
-    void setToken(std::string address, std::string symbol, int decimals);
-    void setDefaultToken();
+    // =======================================================================
+    // TRANSACTION MANAGEMENT
+    // =======================================================================
 
     /**
      * Build a transaction from user data.

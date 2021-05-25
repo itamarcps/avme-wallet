@@ -3,54 +3,98 @@
 // file LICENSE or http://www.opensource.org/licenses/mit-license.php.
 #include "Account.h"
 
-void Account::reloadBalances(Account &a) {
-  // Get the balances from the network, check if they're all here
+void Account::setCoin(Coin& c) {
+  this->currentCoin = c;
+}
+
+void Account::setToken(Token& t) {
+  // TODO: check tradeable and stakeable here
+  this->currentToken = t;
+}
+
+void Account::setDefaultCoin() {
+  std::string coinName = "Avalanche";
+  std::string coinSymbol = "AVAX";
+  int coinDecimals = 18;
+  std::string coinIcon = "qrc:/img/avax_logo.png";
+  Coin c(coinName, coinSymbol, coinDecimals, coinIcon);
+  this->setCoin(c);
+}
+
+// TODO: use data from the list
+void Account::setDefaultToken() {
+  Token::Type tokenType = Token::Type::ERC20;
+  std::string tokenAddress = Pangolin::tokenContracts["AVME"];
+  std::string tokenName = "AV Me";
+  std::string tokenSymbol = "AVME";
+  int tokenDecimals = 18;
+  std::string tokenIcon = "qrc:/img/avme_logo.png";
+  Token t(tokenType, tokenAddress, tokenName, tokenSymbol, tokenDecimals, tokenIcon);
+  // TODO: check tradeable and stakeable here
+  this->setToken(t);
+}
+
+void Account::reloadCoinBalance(Account &a) {
   std::string AVAXBal = API::getAVAXBalance(a.address);
-  std::string AVMEBal = API::getAVMEBalance(
-    a.address, Pangolin::tokenContracts["AVME"]
-  );
-  std::string FreeLPBal = API::getAVMEBalance(
-    a.address, Pangolin::pairContracts["WAVAX-AVME"]
-  );
-  std::string LockedLPBal = API::getAVMEBalance(
-    a.address, Pangolin::stakingContract
-  );
-  if (AVAXBal == "" || AVMEBal == "" || FreeLPBal == "" || LockedLPBal == "") {
-    return;
-  }
-
-  // Convert the balances from hex to u256, then to string
+  if (AVAXBal == "") { return; }
   u256 AVAXu256 = boost::lexical_cast<HexTo<u256>>(AVAXBal);
-  u256 AVMEu256 = boost::lexical_cast<HexTo<u256>>(AVMEBal);
-  u256 FreeLPu256 = boost::lexical_cast<HexTo<u256>>(FreeLPBal);
-  u256 LockedLPu256 = boost::lexical_cast<HexTo<u256>>(LockedLPBal);
   std::string AVAXstr = boost::lexical_cast<std::string>(AVAXu256);
-  std::string AVMEstr = boost::lexical_cast<std::string>(AVMEu256);
-  std::string FreeLPstr = boost::lexical_cast<std::string>(FreeLPu256);
-  std::string LockedLPstr = boost::lexical_cast<std::string>(LockedLPu256);
-
-  // Check if strings are valid
   bool AVAXisValid = (
     AVAXstr != "" && AVAXstr.find_first_not_of("0123456789.") == std::string::npos
   );
+  if (!AVAXisValid) { return; }
+  a.balancesThreadLock.lock();
+  a.balanceAVAX = Utils::weiToFixedPoint(AVAXstr, 18);
+  a.balancesThreadLock.unlock();
+  return;
+}
+
+void Account::reloadTokenBalance(Account &a) {
+  std::string AVMEBal = API::getAVMEBalance(
+    a.address, Pangolin::tokenContracts["AVME"]
+  );
+  if (AVMEBal == "") { return; }
+  u256 AVMEu256 = boost::lexical_cast<HexTo<u256>>(AVMEBal);
+  std::string AVMEstr = boost::lexical_cast<std::string>(AVMEu256);
   bool AVMEisValid = (
     AVMEstr != "" && AVMEstr.find_first_not_of("0123456789.") == std::string::npos
   );
+  if (!AVMEisValid) { return; }
+  a.balancesThreadLock.lock();
+  a.balanceAVME = Utils::weiToFixedPoint(AVMEstr, 18);
+  a.balancesThreadLock.unlock();
+  return;
+}
+
+void Account::reloadFreeLPBalance(Account &a) {
+  std::string FreeLPBal = API::getAVMEBalance(
+    a.address, Pangolin::pairContracts["WAVAX-AVME"]
+  );
+  if (FreeLPBal == "") { return; }
+  u256 FreeLPu256 = boost::lexical_cast<HexTo<u256>>(FreeLPBal);
+  std::string FreeLPstr = boost::lexical_cast<std::string>(FreeLPu256);
   bool FreeLPisValid = (
     FreeLPstr != "" && FreeLPstr.find_first_not_of("0123456789.") == std::string::npos
   );
+  if (!FreeLPisValid) { return; }
+  a.balancesThreadLock.lock();
+  a.balanceLPFree = Utils::weiToFixedPoint(FreeLPstr, 18);
+  a.balancesThreadLock.unlock();
+  return;
+}
+
+void Account::reloadLockedLPBalance(Account &a) {
+  std::string LockedLPBal = API::getAVMEBalance(
+    a.address, Pangolin::stakingContract
+  );
+  if (LockedLPBal == "") { return; }
+  u256 LockedLPu256 = boost::lexical_cast<HexTo<u256>>(LockedLPBal);
+  std::string LockedLPstr = boost::lexical_cast<std::string>(LockedLPu256);
   bool LockedLPisValid = (
     LockedLPstr != "" && LockedLPstr.find_first_not_of("0123456789.") == std::string::npos
   );
-  if (!AVAXisValid || !AVMEisValid || !FreeLPisValid || !LockedLPisValid) {
-    return;
-  }
-
-  // Update the balances
+  if (!LockedLPisValid) { return; }
   a.balancesThreadLock.lock();
-  a.balanceAVAX = Utils::weiToFixedPoint(AVAXstr, 18);
-  a.balanceAVME = Utils::weiToFixedPoint(AVMEstr, 18);
-  a.balanceLPFree = Utils::weiToFixedPoint(FreeLPstr, 18);
   a.balanceLPLocked = Utils::weiToFixedPoint(LockedLPstr, 18);
   a.balancesThreadLock.unlock();
   return;
@@ -59,7 +103,14 @@ void Account::reloadBalances(Account &a) {
 void Account::balanceThreadHandler(Account &a) {
   while (true) {
     //std::cout << "Ping! " << a.address << std::endl;
-    Account::reloadBalances(a);
+    Account::reloadCoinBalance(a);
+    Account::reloadTokenBalance(a);
+    if (Graph::isTokenTradeable(a.address)) {
+      Account::reloadFreeLPBalance(a);
+    }
+    if (a.currentToken.getAddress() == Pangolin::tokenContracts["AVME"]) {
+      Account::reloadLockedLPBalance(a);
+    }
     for (int i = 0; i < 1000; i++) {
       boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
       if (a.interruptThread) {
