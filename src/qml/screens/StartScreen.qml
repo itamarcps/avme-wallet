@@ -18,15 +18,12 @@ Item {
 
   Connections {
     target: System
-    function onAccountCreated(obj) {
-      // Always default to AVAX & AVME on first load
-      // TODO: fix this
-      System.setCurrentAccount(obj.accAddress)
-      System.setCurrentCoinName("AVAX")
-      System.setCurrentCoinDecimals(18);
-      System.loadAccounts()
+    function onAccountCreated(address) {
+      System.setCurrentAccount(address)
+      System.setDefaultCoin()
+      System.setDefaultToken()
       walletNewPopup.close()
-      System.goToOverview();
+      System.goToOverview()
       System.setScreen(content, "qml/screens/OverviewScreen.qml")
     }
     function onAccountCreationFailed() {

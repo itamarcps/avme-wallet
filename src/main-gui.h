@@ -61,7 +61,7 @@ class System : public QObject {
     void coinChanged();
     void tokenChanged();
     void accountsGenerated(QVariantList accounts);
-    void accountCreated();
+    void accountCreated(QString address);
     void accountCreationFailed();
     void accountBalancesUpdated(QVariantMap data);
     void accountFiatBalancesUpdated(QVariantMap data);
@@ -107,8 +107,8 @@ class System : public QObject {
     Q_INVOKABLE QString getCurrentAccount() {
       return QString::fromStdString(this->w.currentAccount.address);
     }
-    Q_INVOKABLE void setCurrentAccount(QString account) {
-      this->w.setAccount(account.toStdString());
+    Q_INVOKABLE void setCurrentAccount(QString address) {
+      this->w.setAccount(address.toStdString());
     }
 
     Q_INVOKABLE QString getCurrentCoinName() {
@@ -298,8 +298,9 @@ class System : public QObject {
         std::string seedStr = seed.toStdString();
         std::string nameStr = name.toStdString();
         std::string passStr = pass.toStdString();
-        if (this->w.createAccount(seedStr, index, nameStr, passStr)) {
-          emit accountCreated();
+        std::string address = this->w.createAccount(seedStr, index, nameStr, passStr);
+        if (!address.empty()) {
+          emit accountCreated(QString::fromStdString(address));
         } else {
           emit accountCreationFailed();
         }

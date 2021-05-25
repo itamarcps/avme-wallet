@@ -86,7 +86,7 @@ void Wallet::setAccount(std::string address) {
   return;
 }
 
-bool Wallet::createAccount(
+std::string Wallet::createAccount(
   std::string &seed, int64_t index, std::string name, std::string &pass
 ) {
   bip3x::Bip39Mnemonic::MnemonicResult mnemonic;
@@ -94,13 +94,13 @@ bool Wallet::createAccount(
     mnemonic.raw = seed;
   } else {  // Using the Wallet's own seed
     std::pair<bool,std::string> seedSuccess = BIP39::loadEncryptedMnemonic(mnemonic, pass);
-    if (!seedSuccess.first) { return false; }
+    if (!seedSuccess.first) { return ""; }
   }
   std::string indexStr = boost::lexical_cast<std::string>(index);
   bip3x::HDKey keyPair = BIP39::createKey(mnemonic.raw, "m/44'/60'/0'/0/" + indexStr);
   KeyPair k(Secret::frombip3x(keyPair.privateKey));
   h128 u = this->km.import(k.secret(), name, pass, "");
-  return true;
+  return k.address().hex();
 }
 
 bool Wallet::eraseAccount(std::string account) {

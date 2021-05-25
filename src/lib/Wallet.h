@@ -106,9 +106,9 @@ class Wallet {
     /**
      * Create/import an Account in the Wallet, based on a given seed and index,
      * and automatically reload the list.
-     * Returns true on success, false on failure.
+     * Returns the Account's address, or an empty string on failure.
      */
-    bool createAccount(
+    std::string createAccount(
       std::string &seed, int64_t index, std::string name, std::string &pass
     );
 
