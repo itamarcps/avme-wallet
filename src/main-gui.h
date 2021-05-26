@@ -63,6 +63,7 @@ class System : public QObject {
     void accountsGenerated(QVariantList accounts);
     void accountCreated(QString address);
     void accountCreationFailed();
+    void accountCoinBalanceGot(int index, QString balanceAVAX);
     void accountBalancesUpdated(QVariantMap data);
     void accountFiatBalancesUpdated(QVariantMap data);
     void walletBalancesUpdated(QVariantMap data);
@@ -317,6 +318,22 @@ class System : public QObject {
       return this->w.accountExists(account.toStdString());
     }
 
+    // Query the AVAX balance for a given Account
+    Q_INVOKABLE void getAccountAVAXBalance(QString address, int index) {
+      QtConcurrent::run([=](){
+        std::string AVAXBal = API::getAVAXBalance(address.toStdString());
+        if (AVAXBal == "") { emit accountCoinBalanceGot(index, ""); }
+        u256 AVAXu256 = boost::lexical_cast<HexTo<u256>>(AVAXBal);
+        std::string AVAXstr = boost::lexical_cast<std::string>(AVAXu256);
+        bool AVAXisValid = (
+          AVAXstr != "" && AVAXstr.find_first_not_of("0123456789.") == std::string::npos
+        );
+        if (!AVAXisValid) { emit accountCoinBalanceGot(index, ""); }
+        AVAXstr = Utils::weiToFixedPoint(AVAXstr, 18);
+        emit accountCoinBalanceGot(index, QString::fromStdString(AVAXstr));
+      });
+    }
+
     // =======================================================================
     // COIN/TOKEN-SPECIFIC WRAPPERS
     // =======================================================================
@@ -432,6 +449,7 @@ class System : public QObject {
     }
 
     // Get the icon for the selected token
+    // TODO: check this
     /*
     Q_INVOKABLE QString getCurrentTokenIcon() {
       std::string tokenName = this->w.currentAccount.currentToken.name;
@@ -475,7 +493,6 @@ class System : public QObject {
     }
 
     // Get the current Account's balances
-    // TODO: use this on overview too
     Q_INVOKABLE QVariantMap getCurrentAccountBalances() {
       QVariantMap ret;
       std::string balanceAVAXStr, balanceAVMEStr, balanceLPFreeStr, balanceLPLockedStr;
@@ -490,6 +507,14 @@ class System : public QObject {
       ret.insert("balanceLPFree", QString::fromStdString(balanceLPFreeStr));
       ret.insert("balanceLPLocked", QString::fromStdString(balanceLPLockedStr));
       return ret;
+    }
+
+    // Same as above, as a wrapper for the Overview screen
+    Q_INVOKABLE void getCurrentAccountBalancesOverview() {
+      QtConcurrent::run([=](){
+        QVariantMap data = getCurrentAccountBalances();
+        emit accountBalancesUpdated(data);
+      });
     }
 
     // Query and calculate fiat pricings for the given balances

@@ -80,6 +80,7 @@ void Wallet::setAccount(std::string address) {
       this->currentAccount = Account(
         toUUID(u), this->km.accountName(a), "0x" + boost::lexical_cast<std::string>(a)
       );
+	  this->currentAccount.startBalancesThread(this->currentAccount);
       break;
     }
   }

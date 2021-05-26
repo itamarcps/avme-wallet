@@ -16,6 +16,7 @@ Item {
   property bool createWalletExists
   property bool loadWalletExists
 
+  // TODO: ask for first Account name on Wallet creation
   Connections {
     target: System
     function onAccountCreated(address) {

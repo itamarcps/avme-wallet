@@ -35,6 +35,7 @@ void Account::setDefaultToken() {
 }
 
 void Account::reloadCoinBalance(Account &a) {
+  std::cout << a.address << std::endl;
   std::string AVAXBal = API::getAVAXBalance(a.address);
   if (AVAXBal == "") { return; }
   u256 AVAXu256 = boost::lexical_cast<HexTo<u256>>(AVAXBal);
@@ -43,6 +44,7 @@ void Account::reloadCoinBalance(Account &a) {
     AVAXstr != "" && AVAXstr.find_first_not_of("0123456789.") == std::string::npos
   );
   if (!AVAXisValid) { return; }
+	std::cout << a.address << std::endl;
   a.balancesThreadLock.lock();
   a.balanceAVAX = Utils::weiToFixedPoint(AVAXstr, 18);
   a.balancesThreadLock.unlock();

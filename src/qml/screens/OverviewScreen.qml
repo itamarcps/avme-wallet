@@ -127,7 +127,7 @@ Item {
     id: accountBalancesReloadTimer
     interval: 2500
     repeat: false
-    onTriggered: System.getAccountBalancesOverview(System.getCurrentAccount())
+    onTriggered: System.getCurrentAccountBalancesOverview()
   }
 
   // Timer for reloading the Account fiat balances
@@ -135,7 +135,7 @@ Item {
     id: accountFiatBalancesReloadTimer
     interval: 2500
     repeat: false
-    onTriggered: System.getAccountFiatBalancesOverview(System.getCurrentAccount())
+    //onTriggered: System.getAccountFiatBalancesOverview(System.getCurrentAccount())
   }
 
   // Timer for reloading the Wallet balances
@@ -143,7 +143,7 @@ Item {
     id: walletBalancesReloadTimer
     interval: 2500
     repeat: false
-    onTriggered: System.getAllAccountBalancesOverview()
+    //onTriggered: System.getAllAccountBalancesOverview()
   }
 
   // Timer for reloading the Wallet fiat balances
@@ -151,7 +151,7 @@ Item {
     id: walletFiatBalancesReloadTimer
     interval: 2500
     repeat: false
-    onTriggered: System.getAllAccountFiatBalancesOverview()
+    //onTriggered: System.getAllAccountFiatBalancesOverview()
   }
 
   // Timer for reloading the current AVME reward
@@ -159,7 +159,7 @@ Item {
     id: rewardReloadTimer
     interval: 2500
     repeat: false
-    onTriggered: System.getPoolReward()
+    //onTriggered: System.getPoolReward()
   }
 
   // Timer for reloading the staking ROI
@@ -167,7 +167,7 @@ Item {
     id: roiTimer
     interval: 2500
     repeat: false
-    onTriggered: System.calculateRewardCurrentROI()
+    //onTriggered: System.calculateRewardCurrentROI()
   }
 
   Component.onCompleted: {
@@ -177,13 +177,13 @@ Item {
     walletTokenBalance.text = walletTokenPrice.text = "Loading..."
     stakingFreeBalance.text = "Loading..."
     stakingLockedBalance.text = "Loading..."
-    System.getAccountBalancesOverview(System.getCurrentAccount())
-    System.getAccountFiatBalancesOverview(System.getCurrentAccount())
-    System.getAllAccountBalancesOverview()
-    System.getAllAccountFiatBalancesOverview()
-    System.getPoolReward()
-    System.calculateRewardCurrentROI()
-    System.getMarketData(30)
+    System.getCurrentAccountBalancesOverview()
+    //System.getAccountFiatBalancesOverview(System.getCurrentAccount())
+    //System.getAllAccountBalancesOverview()
+    //System.getAllAccountFiatBalancesOverview()
+    //System.getPoolReward()
+    //System.calculateRewardCurrentROI()
+    //System.getMarketData(30)
   }
 
   AVMEAccountHeader {
@@ -372,7 +372,7 @@ Item {
             }
             antialiasing: true
             smooth: true
-            source: System.getCurrentTokenIcon()
+            //source: System.getCurrentTokenIcon()
             fillMode: Image.PreserveAspectFit
           }
 
@@ -592,7 +592,7 @@ Item {
             }
             antialiasing: true
             smooth: true
-            source: System.getCurrentTokenIcon()
+            //source: System.getCurrentTokenIcon()
             fillMode: Image.PreserveAspectFit
           }
 

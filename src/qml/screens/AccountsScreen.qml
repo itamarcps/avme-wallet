@@ -13,7 +13,7 @@ Item {
 
   Connections {
     target: System
-    function onAccountCreated(data) {
+    function onAccountCreated(address) {
       createAccountPopup.close()
       fetchAccounts()
     }
@@ -21,18 +21,22 @@ Item {
       createAccountPopup.close()
       accountFailPopup.open()
     }
+    function onAccountCoinBalanceGot(index, balanceAVAX) {
+      accountsList.get(index).coinAmount = balanceAVAX
+    }
   }
 
   Component.onCompleted: fetchAccounts()
 
   // Helper to get the Wallet's Accounts
-  // TODO: get AVAX balance only here
   function fetchAccounts() {
     console.log("Fetching Accounts...")
     accountsList.clear()
     var accList = System.getAccounts()
     for (var i = 0; i < accList.length; i++) {
-      accountsList.append(JSON.parse(accList[i]))
+      var acc = JSON.parse(accList[i])
+      accountsList.append(acc)
+      System.getAccountAVAXBalance(acc.account, accList.count - 1)
     }
   }
 
@@ -111,7 +115,6 @@ Item {
         System.setCurrentAccount(walletList.currentItem.itemAccount)
         System.setDefaultCoin();
         System.setDefaultToken();
-        listReloadTimer.stop()
         System.goToOverview();
         System.setScreen(content, "qml/screens/OverviewScreen.qml")
       }
@@ -139,7 +142,6 @@ Item {
         infoTimer.start()
       } else {
         try {
-          listReloadTimer.stop()
           chooseAccountPopup.close()
           System.createAccount(foreignSeed, index, name, pass)
           chooseAccountPopup.clean()
@@ -217,7 +219,6 @@ Item {
     yesBtn.onClicked: {
       if (System.checkWalletPass(erasePassInput.text)) {
         if (System.eraseAccount(walletList.currentItem.itemAccount)) {
-          listReloadTimer.stop()
           erasePopup.close()
           erasePopup.account = ""
           erasePassInput.text = ""

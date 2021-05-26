@@ -64,7 +64,7 @@ ListView {
       x: headerName.x + headerName.width
       color: "white"
       padding: 5
-      text: "Coin Balance"
+      text: "AVAX Balance"
       font.pixelSize: 14.0
     }
   }

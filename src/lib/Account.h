@@ -62,8 +62,23 @@ class Account {
     std::atomic_bool threadWasInterrupted;
     std::atomic_bool interruptThread;
 
-    // Constructors (empty, copy and initializer)
+    // Empty constructor
     Account(){}
+
+    // Constructor
+    Account(std::string id, std::string name, std::string address) {
+      this->id = id;
+      this->name = name;
+      this->address = address;
+      loadTxHistory();
+    }
+
+    // Destructor
+    ~Account() {
+      this->stopBalancesThread(*this);
+    }
+
+    // Copy constructor
     Account(const Account& acc){
       this->id = acc.id;
       this->name = acc.name;
@@ -74,12 +89,7 @@ class Account {
       this->balanceLPLocked = acc.balanceLPLocked;
       this->history = acc.history;
     }
-    Account(std::string id, std::string name, std::string address) {
-      this->id = id;
-      this->name = name;
-      this->address = address;
-      loadTxHistory();
-    }
+
     Account& operator=(const Account& acc) {
       this->id = acc.id;
       this->name = acc.name;
