@@ -24,7 +24,7 @@ HunterGate(
 
 # Project data
 project(avme_wallet)
-set(PROJECT_VERSION 2.0.0)
+set(PROJECT_VERSION 2.0.1)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -62,10 +62,12 @@ find_package(libscrypt CONFIG REQUIRED)
 
 # Add external modules
 include(ProjectEthash)
+include(ProjectSnappy)
 include(ProjectLevelDB)
 include(ProjectSecp256k1)
 include(ProjectToolbox)
 include(ProjectBip3x)
+include(ProjectLibmd4c)
 find_package(Threads)
 
 # Include headers and libs
@@ -73,12 +75,14 @@ include_directories(
   "${CMAKE_SOURCE_DIR}"
   "${CMAKE_SOURCE_DIR}/src"
   "${CMAKE_SOURCE_DIR}/build"
+  "${CMAKE_SOURCE_DIR}/build/deps/include"
   "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/include"
 )
 link_directories(
   "${CMAKE_SOURCE_DIR}"
   "${CMAKE_SOURCE_DIR}/src"
   "${CMAKE_SOURCE_DIR}/build"
+  "${CMAKE_SOURCE_DIR}/build/deps/lib"
   "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib"
 )
 
@@ -113,7 +117,7 @@ add_library(avme-lib
 )
 target_link_libraries(avme-lib PUBLIC
   devcore devcrypto ethcore ledger ${ETHASH_BYPRODUCTS} Ethash
-  toolbox bip39 LevelDB ${BOOST_LIBS} ssl crypto
+  toolbox bip39 LevelDB ${BOOST_LIBS} ssl crypto md4c snappy
 )
 
 # Set the project version as a macro in a header file

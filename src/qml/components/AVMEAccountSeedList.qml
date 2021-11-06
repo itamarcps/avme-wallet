@@ -34,11 +34,11 @@ ListView {
   header: Rectangle {
     id: listHeader
     width: parent.width
-    height: parent.parent.height * 0.15
+    height: parent.parent.height * 0.1
     color: "#201E2B"
     z: 2
     anchors.horizontalCenter: parent.horizontalCenter
-      Rectangle {
+    Rectangle {
       id: listHeaderBg
       width: parent.width
       height: parent.height * 0.666
@@ -82,7 +82,7 @@ ListView {
           text: "AVAX Balance"
         }
       }
-    // Spacing between header and list itself
+      // Spacing between header and list itself
     }
   }
   headerPositioning: ListView.OverlayHeader // Prevent header scrolling along
@@ -95,7 +95,7 @@ ListView {
       readonly property string itemIndex: idx
       readonly property string itemAccount: account
       readonly property string itemBalance: balance
-      width: parent.width
+      width: accountSeedList.width
       height: 30
 
       Rectangle {
@@ -148,7 +148,10 @@ ListView {
       MouseArea {
         id: delegateMouseArea
         anchors.fill: parent
-        onClicked: accountSeedList.currentIndex = index
+        onClicked: {
+          accountSeedList.currentIndex = index
+          accountSeedList.forceActiveFocus()
+        }
       }
     }
   }

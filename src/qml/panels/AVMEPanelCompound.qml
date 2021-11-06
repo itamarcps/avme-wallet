@@ -69,15 +69,15 @@ AVMEPanel {
             compoundTotalDeposits = qmlApi.parseHex(resp[item].result, ["uint"])
           }
         }
-        // TODO: check edge case of allowance and balance both being zero
         if (+allowance <= +pairUserBalance) {
           stakingDetailsColumn.visible = false
           stakingApprovalColumn.visible = true
           loading = false
+          stakingLoadingPng.visible = false
           return
         }
 
-        lowerAddress = qmlSystem.getFirstFromPair(
+        lowerAddress = qmlApi.getFirstFromPair(
           qmlSystem.getContract("AVAX"), qmlSystem.getContract("AVME")
         )
         pairUserLockedBalance = qmlApi.floor(qmlApi.div(qmlApi.mul(compoundUserLockedBalance,compoundTotalDeposits),compoundSupply))
@@ -99,6 +99,7 @@ AVMEPanel {
         userHigherShares = shares.asset2
         userLPShares = shares.liquidity
         loading = false
+        stakingLoadingPng.visible = false
         stakingApprovalColumn.visible = false
         stakingDetailsColumn.visible = true
       }
@@ -158,8 +159,8 @@ AVMEPanel {
     to = pairAddress
     coinValue = 0
     gas = 100000
-    info = "You will Approve <b> AVME/AVAX LP <\b> on Compound Staking Contract"
-    historyInfo = "Approve <b> AVME/AVAX LP <\b> on Compound Staking Contract"
+    info = "You will approve <b> AVME/AVAX LP </b> on Compound Staking Contract"
+    historyInfo = "Approve <b> AVME/AVAX LP </b> on Compound Staking Contract"
 
     var ethCallJson = ({})
     ethCallJson["function"] = "approve(address,uint256)"
@@ -178,8 +179,8 @@ AVMEPanel {
     to = qmlSystem.getContract("compound")
     coinValue = 0
     gas = 200000
-    info = "You will stake <b> " + qmlApi.weiToFixedPoint(stakeInput.text, 18) + " AVME/AVAX LP <\b> on Compound Staking"
-    historyInfo = "Stake <b> AVME/AVAX LP <\b> on Compound Staking"
+    info = "You will stake <b> " + stakeInput.text + " AVME/AVAX LP </b> on Compound Staking"
+    historyInfo = "Stake <b> AVME/AVAX LP </b> on Compound Staking"
     var ethCallJson = ({})
     ethCallJson["function"] = "deposit(uint256)"
     ethCallJson["args"] = []
@@ -195,8 +196,8 @@ AVMEPanel {
     to = qmlSystem.getContract("compound")
     coinValue = 0
     gas = 200000
-    info = "You will unstake <b> " + qmlApi.weiToFixedPoint(stakeInput.text, 18) + " AVME/AVAX LP <\b> on Compound Staking"
-    historyInfo = "Unstake <b> AVME/AVAX LP <\b> on Compound Staking"
+    info = "You will unstake <b> " + stakeInput.text + " AVME/AVAX LP </b> on Compound Staking"
+    historyInfo = "Unstake <b> AVME/AVAX LP </b> on Compound Staking"
     var ethCallJson = ({})
     ethCallJson["function"] = "withdraw(uint256)"
     ethCallJson["args"] = []
@@ -216,7 +217,8 @@ AVMEPanel {
   Component.onCompleted: {
     stakingDetailsColumn.visible = false
     stakingApprovalColumn.visible = false
-    loading = true;
+    loading = true
+    stakingLoadingPng.visible = true
     reservesTimer.start()
   }
   Column {
@@ -229,7 +231,7 @@ AVMEPanel {
       leftMargin: 40
       rightMargin: 40
     }
-    spacing: 30
+    spacing: 20
 
     Row {
       anchors.horizontalCenter: parent.horizontalCenter
@@ -254,14 +256,25 @@ AVMEPanel {
       }
     }
 
-    Image {
-      id: stakeLogo
+    Row {
+      id: stakeIconRow
       anchors.horizontalCenter: parent.horizontalCenter
-      height: 48
-      antialiasing: true
-      smooth: true
-      fillMode: Image.PreserveAspectFit
-      source: "qrc:/img/pangolin.png"
+      spacing: 10
+
+      AVMEAsyncImage {
+        id: stakeAvaxLogo
+        width: 64
+        height: 64
+        loading: false
+        imageSource: "qrc:/img/avax_logo.png"
+      }
+      AVMEAsyncImage {
+        id: stakeAvmeLogo
+        width: 64
+        height: 64
+        loading: false
+        imageSource: "qrc:/img/avme_logo.png"
+      }
     }
 
     Text {
@@ -352,7 +365,7 @@ AVMEPanel {
       width: (parent.width * 0.8)
       anchors.left: parent.left
       enabled: (allowance != "")
-      validator: RegExpValidator { regExp: /[0-9]{1,}(?:\.[0-9]{1,18})?/ }
+      validator: RegExpValidator { regExp: /(?:[0-9]{1,})?(?:\.[0-9]{1,18})?/ }
       label: "Amount of AVAX/AVME LP to " + ((isStaking) ? "stake" : "unstake")
       placeholder: "Fixed point amount (e.g. 0.5)"
 
@@ -423,9 +436,8 @@ AVMEPanel {
     }
     }
   }
-  Image {
+  AVMEAsyncImage {
     id: stakingLoadingPng
-    visible: loading
     anchors {
       top: stakingHeaderColumn.bottom
       bottom: parent.bottom
@@ -434,8 +446,8 @@ AVMEPanel {
       topMargin: parent.height * 0.1
       bottomMargin: parent.height * 0.1
     }
-    fillMode: Image.PreserveAspectFit
-    source: "qrc:/img/icons/loading.png"
+    visible: loading
+    imageSource: "qrc:/img/icons/loading.png"
     RotationAnimator {
       target: stakingLoadingPng
       from: 0

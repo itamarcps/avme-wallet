@@ -3,16 +3,26 @@
 // file LICENSE or http://www.opensource.org/licenses/mit-license.php.
 #include "Wallet.h"
 
-void Wallet::setDefaultPathFolders() {
-  auto defaultPath = Utils::getDataDir();
-  boost::filesystem::path walletFile = defaultPath.string() + "/wallet/c-avax/wallet.info";
-  boost::filesystem::path secretsFolder = defaultPath.string() + "/wallet/c-avax/accounts/secrets";
-  boost::filesystem::path historyFolder = defaultPath.string() + "/wallet/c-avax/accounts/transactions";
-  if (!exists(walletFile.parent_path())) { create_directories(walletFile.parent_path()); }
-  if (!exists(secretsFolder)) { create_directories(secretsFolder); }
-  if (!exists(historyFolder)) { create_directories(historyFolder); }
-  Utils::walletFolderPath = defaultPath;
-  return;
+void Wallet::storedPassThreadHandler() {
+  while (true) {
+    std::time_t now = std::time(nullptr);
+    if (now > this->storedPassDeadline) break;
+    boost::this_thread::sleep_for(boost::chrono::seconds(1));
+  }
+  this->storedPass = "";
+  this->storedPassDeadline = 0;
+}
+
+void Wallet::startPassThread(std::string pass, std::time_t deadline) {
+  this->storedPass = pass;
+  this->storedPassDeadline = deadline;
+  this->storedPassThread = boost::thread(boost::bind(&Wallet::storedPassThreadHandler, this));
+  this->storedPassThread.detach();
+}
+
+void Wallet::stopPassThread() {
+  this->storedPass = "";
+  this->storedPassDeadline = 0;  // This ensures the thread will be terminated
 }
 
 bool Wallet::create(boost::filesystem::path folder, std::string pass) {
@@ -92,20 +102,38 @@ bool Wallet::loadAppDB() {
   return this->db.openAppDB();
 }
 
+bool Wallet::loadAddressDB() {
+  if (this->db.isAddressDBOpen()) { this->db.closeAddressDB(); }
+  return this->db.openAddressDB();
+}
+
+bool Wallet::loadConfigDB() {
+  if (this->db.isConfigDBOpen()) { this->db.closeConfigDB(); }
+  return this->db.openConfigDB();
+}
+
 void Wallet::closeTokenDB() {
-  this->db.closeTokenDB();
+  if (this->db.isTokenDBOpen()) { this->db.closeTokenDB(); }
 }
 
 void Wallet::closeHistoryDB() {
-  this->db.closeHistoryDB();
+  if (this->db.isHistoryDBOpen()) { this->db.closeHistoryDB(); }
 }
 
 void Wallet::closeLedgerDB() {
-  this->db.closeLedgerDB();
+  if (this->db.isLedgerDBOpen()) { this->db.closeLedgerDB(); }
 }
 
 void Wallet::closeAppDB() {
-  this->db.closeAppDB();
+  if (this->db.isAppDBOpen()) { this->db.closeAppDB(); }
+}
+
+void Wallet::closeAddressDB() {
+  if (this->db.isAddressDBOpen()) { this->db.closeAddressDB(); }
+}
+
+void Wallet::closeConfigDB() {
+  if (this->db.isConfigDBOpen()) { this->db.closeConfigDB(); }
 }
 
 void Wallet::loadARC20Tokens() {
@@ -201,11 +229,11 @@ std::vector<ledger::account> Wallet::getAllLedgerAccounts() {
   return ret;
 }
 
-
 bool Wallet::deleteLedgerAccount(std::string address) {
   bool success = this->db.deleteLedgerDBValue(address);
   return success;
 }
+
 bool Wallet::eraseAccount(std::string address) {
   if (accountExists(address)) {
     this->km.kill(userToAddress(address));
@@ -217,6 +245,10 @@ bool Wallet::eraseAccount(std::string address) {
 
 bool Wallet::accountExists(std::string address) {
   return (this->accounts.find(address) != this->accounts.end());
+}
+
+bool Wallet::ledgerAccountExists(std::string address) {
+  return this->db.ledgerDBKeyExists(address);
 }
 
 void Wallet::setCurrentAccount(std::string address) {
@@ -261,73 +293,102 @@ Secret Wallet::getSecret(std::string const& address, std::string pass) {
   }
 }
 
-/*
-void Wallet::loadAvailableApps() {
-  this->availableApps.clear();
-  boost::filesystem::path appsFile = folder.string() + "/wallet/c-avax/apps.json";
-  std::string appJsonStr = Utils::readJSONFile(appsFile);
-  json appJson = json::parse(appJsonStr);
-  json devsArr = appJson["devs"];
-  for (auto& dev : devsArr) {
-    json appsArr = dev["apps"];
-    for (auto& app : appsArr) {
-      App a;
-      a.devName = dev["name"].get<std::string>();
-      a.devIcon = dev["icon"].get<std::string>();
-      a.name = app["name"].get<std::string>();
-      a.icon = app["icon"].get<std::string>();
-      a.description = app["description"].get<std::string>();
-      a.major = app["major"].get<int>();
-      a.minor = app["minor"].get<int>();
-      a.patch = app["patch"].get<int>();
-      this->availableApps.push_back(a);
-    }
-  }
-}
-
-void Wallet::loadInstalledApps() {
-  this->installedApps.clear();
+json Wallet::getRegisteredApps() {
+  json appList = json::array();
   std::vector<std::string> appJsonList = this->db.getAllAppDBValues();
   for (std::string appJson : appJsonList) {
-    App a;
-    json appData = json::parse(appJson);
-    a.devName = appData["devName"].get<std::string>();
-    a.devIcon = appData["devIcon"].get<std::string>();
-    a.name = appData["name"].get<std::string>();
-    a.icon = appData["icon"].get<std::string>();
-    a.description = appData["description"].get<std::string>();
-    a.major = appData["major"].get<int>();
-    a.minor = appData["minor"].get<int>();
-    a.patch = appData["patch"].get<int>();
-    this->installedApps.push_back(a);
+    appList.push_back(json::parse(appJson));
   }
+  return appList;
 }
-*/
+
+bool Wallet::appIsRegistered(std::string folder) {
+  return this->db.appDBKeyExists(folder);
+}
+
+bool Wallet::registerApp(
+  int chainId, std::string folder, std::string name,
+  int major, int minor, int patch
+) {
+  json app;
+  app["chainId"] = chainId;
+  app["folder"] = folder;
+  app["name"] = name;
+  app["major"] = major;
+  app["minor"] = minor;
+  app["patch"] = patch;
+  return this->db.putAppDBValue(folder, app.dump());
+}
+
+bool Wallet::unregisterApp(std::string folder) {
+  return this->db.deleteAppDBValue(folder);
+}
+
+std::map<std::string, std::string> Wallet::getContacts() {
+  std::map<std::string, std::string> ret;
+  std::vector<std::string> contacts = this->db.getAllAddressDBValues();
+  for (std::string contact : contacts) {
+    json contactJson = json::parse(contact);
+    ret.emplace(contactJson["address"], contactJson["name"]);
+  }
+  return ret;
+}
+
+bool Wallet::addContact(std::string address, std::string name) {
+  json contact = json::object();
+  contact["address"] = address;
+  contact["name"] = name;
+  return this->db.putAddressDBValue(address, contact.dump());
+}
+
+bool Wallet::removeContact(std::string address) {
+  return this->db.deleteAddressDBValue(address);
+}
+
+int Wallet::importContacts(std::string file) {
+  int ret = 0;
+  boost::filesystem::path filePath = file;
+  if (!boost::filesystem::exists(filePath)) { return ret; }
+  json contacts = json::parse(Utils::readJSONFile(filePath))["contacts"];
+  for (json contact : contacts) {
+    ret += this->db.putAddressDBValue(contact["address"], contact.dump());
+  }
+  return ret;
+}
+
+int Wallet::exportContacts(std::string file) {
+  int ret = 0;
+  boost::filesystem::path filePath = file;
+  if (!boost::filesystem::exists(filePath.parent_path())) {
+    boost::filesystem::create_directories(filePath.parent_path());
+  }
+  std::vector<std::string> contacts = this->db.getAllAddressDBValues();
+  json contactObj = json::object();
+  contactObj["contacts"] = json::array();
+  for (std::string contact : contacts) {
+    json contactJson = json::parse(contact);
+    contactObj["contacts"].push_back(contactJson);
+    ret++;
+  }
+  std::string success = Utils::writeJSONFile(contactObj, filePath);
+  return (success.empty()) ? ret : 0;
+}
 
 TransactionSkeleton Wallet::buildTransaction(
   std::string from, std::string to, std::string value,
-  std::string gasLimit, std::string gasPrice, std::string dataHex
+  std::string gasLimit, std::string gasPrice, std::string dataHex, std::string txNonce
 ) {
   TransactionSkeleton txSkel;
-  int txNonce;
-
-  // Check if nonce is valid (not an error message)
-  std::string txNonceStr = API::getNonce(from);
-  if (txNonceStr == "") {
-    txSkel.nonce = Utils::MAX_U256_VALUE();
-    return txSkel;
-  }
-  std::stringstream nonceStrm;
-  nonceStrm << std::hex << txNonceStr;
-  nonceStrm >> txNonce;
 
   // Building the transaction structure
+  //std::cout << txNonce << std::endl;
+  //std::cout << "from: " << from << std::endl;
   txSkel.creation = false;
   txSkel.from = toAddress(from);
   txSkel.to = toAddress(to);
   txSkel.value = u256(value);
   if (!dataHex.empty()) { txSkel.data = fromHex(dataHex); }
-  txSkel.nonce = txNonce;
+  txSkel.nonce = boost::lexical_cast<int>(txNonce);
   txSkel.gas = u256(gasLimit);
   txSkel.gasPrice = u256(gasPrice);
   txSkel.chainId = 43114; // Support for EIP-155
@@ -335,6 +396,8 @@ TransactionSkeleton Wallet::buildTransaction(
 }
 
 std::string Wallet::signTransaction(TransactionSkeleton txSkel, std::string pass) {
+  //std::cout << "Sign from: " << txSkel.from << std::endl;
+  //std::cout << "Password: " << pass << std::endl;
   Secret s = getSecret("0x" + boost::lexical_cast<std::string>(txSkel.from), pass);
   std::stringstream txHexBuffer;
 
@@ -351,29 +414,27 @@ std::string Wallet::signTransaction(TransactionSkeleton txSkel, std::string pass
   return txHexBuffer.str();
 }
 
-std::string Wallet::sendTransaction(std::string txidHex, std::string operation) {
+json Wallet::sendTransaction(std::string txidHex, std::string operation) {
   // Send the transaction
-  std::string txid = API::broadcastTx(txidHex);
-  if (txid == "") { return ""; }
-  std::string txLink = "https://cchain.explorer.avax.network/tx/" + txid;
+  json transactionResult = json::parse(API::broadcastTx(txidHex));
 
   /**
    * Store the successful transaction in the Account's history.
    * Since the AVAX chain is pretty fast, we can ask if the transaction was
    * already confirmed even immediately after sending it.
    */
-  TxData txData = Utils::decodeRawTransaction(txidHex);
-  txData.txlink = txLink;
-  txData.operation = operation;
-  saveTxToHistory(txData);
-  return txLink;
+  if (transactionResult.contains("result")) {
+    TxData txData = Utils::decodeRawTransaction(txidHex);
+    txData.operation = operation;
+    saveTxToHistory(txData);
+  }
+  return transactionResult;
 }
 
 json Wallet::txDataToJSON() {
   json transactionsArray;
   for (TxData savedTxData : this->currentAccountHistory) {
     json savedTransaction;
-    savedTransaction["txlink"] = savedTxData.txlink;
     savedTransaction["operation"] = savedTxData.operation;
     savedTransaction["hex"] = savedTxData.hex;
     savedTransaction["type"] = savedTxData.type;
@@ -405,7 +466,6 @@ void Wallet::loadTxHistory() {
   for (std::string txStr : txData) {
     json tx = json::parse(txStr);
     TxData txData;
-    txData.txlink = tx["txlink"].get<std::string>();
     txData.operation = tx["operation"].get<std::string>();
     txData.hex = tx["hex"].get<std::string>();
     txData.type = tx["type"].get<std::string>();
@@ -432,7 +492,6 @@ void Wallet::loadTxHistory() {
 
 bool Wallet::saveTxToHistory(TxData tx) {
   json transaction;
-  transaction["txlink"] = tx.txlink;
   transaction["operation"] = tx.operation;
   transaction["hex"] = tx.hex;
   transaction["type"] = tx.type;
@@ -456,22 +515,36 @@ bool Wallet::saveTxToHistory(TxData tx) {
   return this->db.putHistoryDBValue(tx.hash, transaction.dump());
 }
 
-bool Wallet::updateAllTxStatus() {
-  loadTxHistory();
-  u256 currentBlock = boost::lexical_cast<HexTo<u256>>(API::getCurrentBlock());
-  for (TxData &tx : this->currentAccountHistory) {
-    if (!tx.invalid && !tx.confirmed) {
-      const auto p1 = std::chrono::system_clock::now();
-      uint64_t now = std::chrono::duration_cast<std::chrono::seconds>(p1.time_since_epoch()).count();
-      std::string status = API::getTxStatus(tx.hex);
-      if (status == "0x1") tx.confirmed = true;
-      if (status == "0x0") {
-        u256 transactionBlock = boost::lexical_cast<HexTo<u256>>(API::getTxBlock(tx.hex));
-        tx.invalid = (currentBlock > transactionBlock);
-      }
-    }
-    saveTxToHistory(tx);
+void Wallet::updateTxStatus(std::string txHash) {
+  TxData tx;
+  for (TxData savedTxData : this->currentAccountHistory) {
+    if (savedTxData.hash == txHash) { tx = savedTxData; break; }
   }
-  return true;
+  u256 currentBlock = boost::lexical_cast<HexTo<u256>>(API::getCurrentBlock());
+  const auto p1 = std::chrono::system_clock::now();
+  uint64_t now = std::chrono::duration_cast<std::chrono::seconds>(p1.time_since_epoch()).count();
+  json apiAnswer = json::parse(API::getTxStatus(tx.hex));
+  if (apiAnswer.contains("status")) {
+    std::string status = apiAnswer["status"];
+    if (status == "0x1") tx.confirmed = true;
+    if (status == "0x0") {
+      u256 transactionBlock = boost::lexical_cast<HexTo<u256>>(API::getTxBlock(apiAnswer["result"]["blockNumber"]));
+      tx.invalid = (currentBlock > transactionBlock);
+    }
+  } else {
+    tx.invalid = ((now + 300) > tx.unixDate);
+  }
+  saveTxToHistory(tx);
 }
 
+std::string Wallet::getConfigValue(std::string key) {
+  return this->db.getConfigDBValue(key);
+}
+
+bool Wallet::setConfigValue(std::string key, std::string value) {
+  return this->db.putConfigDBValue(key, value);
+}
+
+void Wallet::eraseAllHistory() {
+  this->db.deleteAllHistoryDBKeys();
+}

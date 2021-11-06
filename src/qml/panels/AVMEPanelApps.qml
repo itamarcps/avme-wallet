@@ -5,53 +5,96 @@ import QtQuick 2.9
 import QtQuick.Controls 2.2
 
 import "qrc:/qml/components"
+import "qrc:/qml/popups"
 
 // Panel for accessing DApps.
 AVMEPanel {
   id: appsPanel
-  title: "Applications"
-  property alias selectedApp: appList.currentItem
+  title: "Installed DApps"
+  property alias selectedApp: appGrid.currentItem
+  property var availableApps: null
+  property var installedApps: null
+  property int downloadRetries: 5
 
-  Component.onCompleted: {} // TODO: reload apps here probably
+  Component.onCompleted: {
+    infoPopup.info = "Downloading DApp list,<br>please wait..."
+    infoPopup.open()
+    qmlSystem.downloadAppList()
+  }
 
-  AVMEAppList {
-    id: appList
-    width: (parent.width * 0.9)
-    anchors {
-      top: parent.top
-      bottom: filterRow.top
-      horizontalCenter: parent.horizontalCenter
-      topMargin: 80
-      bottomMargin: 20
+  Connections {
+    target: qmlSystem
+    function onAppListDownloaded() {
+      infoPopup.close()
+      refreshGrid()
     }
-    // TODO: real data here
-    model: ListModel {
-      id: appModel
-      ListElement {
-        devIcon: "qrc:/img/avax_logo.png"
-        icon: "qrc:/img/avme_logo.png"
-        name: "Test App 1"
-        description: "A nice test app numbered as one"
-        creator: "MyName Here"
-        major: 1
-        minor: 0
-        patch: 2
+    function onAppListDownloadFailed() {
+      if (downloadRetries > 0) {
+        infoPopup.info = "Download failed, re-trying...<br>"
+        + "(" + (downloadRetries) + " tries left)"
+        downloadRetries -= 1
+        qmlSystem.downloadAppList()
+      } else {
+        infoPopup.close()
+        refreshGrid()
       }
-      ListElement {
-        devIcon: "qrc:/img/pangolin.png"
-        icon: "qrc:/img/yieldyak.png"
-        name: "Test App 2"
-        description: "A pretty long description here about how utterly fantabulous this test app is and the fact it is numero DOS which in Spanish means two"
-        creator: "SomeDude WithAVision Inc."
-        major: 3
-        minor: 14
-        patch: 159
+    }
+    function onAppDownloadProgressUpdated(progress, total) {
+      infoPopup.info = "Downloading DApp, please wait...<br>(" + progress + "/" + total + ")"
+    }
+  }
+
+  function refreshGrid() {
+    appList.clear()
+    availableApps = qmlSystem.loadAppsFromList()
+    installedApps = qmlSystem.loadInstalledApps()
+    for (var i = 0; i < installedApps.length; i++) {
+      if (filterInput.text == "" ||
+        installedApps[i].name.toUpperCase().includes(filterInput.text.toUpperCase())
+      ) {
+        var matchedApp = null
+        for (var j = 0; j < availableApps.length; j++) {
+          if (availableApps[j]["folder"] == installedApps[i]["folder"]) {
+            matchedApp = availableApps[j]
+            break
+          }
+        }
+        installedApps[i]["isUpdated"] = (matchedApp == null || (
+          matchedApp["major"] <= installedApps[i]["major"] &&
+          matchedApp["minor"] <= installedApps[i]["minor"] &&
+          matchedApp["patch"] <= installedApps[i]["patch"]
+        ))
+        if (installedApps[i]["isUpdated"]) {
+          installedApps[i]["nextMajor"] = installedApps[i]["major"]
+          installedApps[i]["nextMinor"] = installedApps[i]["minor"]
+          installedApps[i]["nextPatch"] = installedApps[i]["patch"]
+        } else {
+          installedApps[i]["nextMajor"] = matchedApp["major"]
+          installedApps[i]["nextMinor"] = matchedApp["minor"]
+          installedApps[i]["nextPatch"] = matchedApp["patch"]
+        }
+        appList.append(installedApps[i]);
       }
     }
   }
 
+  AVMEAppGrid {
+    id: appGrid
+    anchors {
+      top: parent.top
+      bottom: bottomRow.top
+      left: parent.left
+      right: parent.right
+      topMargin: 80
+      bottomMargin: 20
+      leftMargin: 20
+      rightMargin: 20
+    }
+    model: ListModel { id: appList }
+  }
+
   Row {
-    id: filterRow
+    id: bottomRow
     anchors {
       bottom: parent.bottom
       horizontalCenter: parent.horizontalCenter
@@ -59,20 +102,24 @@ AVMEPanel {
     }
     spacing: 20
 
-    Text {
-      id: filterText
-      horizontalAlignment: Text.AlignHCenter
-      anchors.verticalCenter: filterInput.verticalCenter
-      color: "#FFFFFF"
-      font.pixelSize: 14.0
-      text: "Filter:"
+    AVMEButton {
+      id: btnAdd
+      width: appsPanel.width * 0.2
+      text: "Install DApp"
+      onClicked: appSelectPopup.open()
     }
-
-    // TODO: the actual filter
     AVMEInput {
       id: filterInput
-      width: appsPanel.width * 0.5
-      placeholder: "Creator or name"
+      width: appsPanel.width * 0.4
+      placeholder: "Filter by name"
+      onTextEdited: refreshGrid()
+    }
+    AVMEButton {
+      id: btnOpenLocal
+      visible: (qmlSystem.getConfigValue("devMode") == "true")
+      width: appsPanel.width * 0.2
+      text: "Open Local DApp"
+      onClicked: loadAppPopup.open()
     }
   }
 }

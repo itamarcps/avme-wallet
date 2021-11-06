@@ -1,6 +1,7 @@
 # TODO: revise library order, it's very messy
 SET(QT_LIBS "")
-LIST(APPEND QT_LIBS "-limm32 -ldwmapi -lwinmm -lversion -lwtsapi32 -lmincore -luserenv -lnetui1 -lnetapi32 -ldxgi -ld3d11 -lsetupapi")
+LIST(APPEND QT_LIBS "-limm32 -ldwmapi -lwinmm -lversion -lwtsapi32 -lmincore -luserenv -lnetui1 -lnetapi32 -ldxgi -ld3d11 -lsetupapi -fstack-protector")
+LIST(APPEND QT_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/plugins/imageformats/libqgif.a")
 LIST(APPEND QT_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libQt5Network.a")
 LIST(APPEND QT_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libQt5Gui.a")
 LIST(APPEND QT_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libQt5Qml.a")
@@ -35,6 +36,8 @@ LIST(APPEND QT_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/qml/Qt/labs/p
 LIST(APPEND QT_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libQt5Widgets.a")
 LIST(APPEND QT_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/qml/QtCharts/libqtchartsqml2.a")
 LIST(APPEND QT_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libQt5Charts.a")
+LIST(APPEND QT_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/plugins/imageformats/libqsvg.a")
+LIST(APPEND QT_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libQt5Svg.a")
 
 SET(BOOST_LIBS "")
 LIST(APPEND BOOST_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libboost_filesystem-mt-s-x64.a")
@@ -42,6 +45,7 @@ LIST(APPEND BOOST_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libboo
 LIST(APPEND BOOST_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libboost_system-mt-s-x64.a")
 LIST(APPEND BOOST_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libboost_thread-mt-s-x64.a")
 LIST(APPEND BOOST_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libboost_chrono-mt-s-x64.a")
+LIST(APPEND BOOST_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libboost_nowide-mt-s-x64.a")
 LIST(APPEND BOOST_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libprotobuf.a")
 LIST(APPEND BOOST_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libusb-1.0.a")
 LIST(APPEND BOOST_LIBS "${CMAKE_SOURCE_DIR}/depends/${DEPENDS_PREFIX}/lib/libhidapi.a")

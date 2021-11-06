@@ -8,13 +8,12 @@ import QtCharts 2.2
 import "qrc:/qml/components"
 
 // Panel for showing each asset's details in the Overview.
-
 AVMEPanel {
   id: assetsPanel
   title: "Your Assets"
 
-  Column {
-    id: assetsColumn
+  AVMEOverviewAssetList {
+    id: assetList
     anchors {
       top: parent.top
       bottom: parent.bottom
@@ -25,22 +24,14 @@ AVMEPanel {
       leftMargin: 20
       rightMargin: 20
     }
-    spacing: 10
-
-    AVMEOverviewAssetList {
-      id: assetList
-      width: parent.width
-      height: parent.height
-    }
   }
-  Image {
+
+  AVMEAsyncImage {
     id: loadingPng
-    height: parent.width / 3
     width: height
-    anchors.verticalCenter: parent.verticalCenter
-    anchors.horizontalCenter: parent.horizontalCenter
-    fillMode: Image.PreserveAspectFit
-    source: "qrc:/img/icons/loading.png"
+    height: (parent.width / 3)
+    anchors.centerIn: parent
+    imageSource: "qrc:/img/icons/loading.png"
     RotationAnimator {
       target: loadingPng
       from: 0

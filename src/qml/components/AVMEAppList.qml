@@ -4,9 +4,11 @@
 import QtQuick 2.9
 import QtQuick.Controls 2.2
 
-// ListView for DApps.
+/**
+ * List of DApps to be selected.
+ */
 ListView {
-  id: appList
+  id: appSelectList
   property color listHighlightColor: "#9400F6"
   property color listBgColor: "#16141F"
   property color listHoverColor: "#2E2C3D"
@@ -25,66 +27,75 @@ ListView {
   boundsBehavior: Flickable.StopAtBounds
 
   delegate: Component {
-    id: listDelegate
+    id: appSelectDelegate
     Item {
-      id: listItem
-      readonly property string itemDevIcon: devIcon
-      readonly property string itemIcon: icon
+      id: appSelectItem
+      readonly property string itemChainId: chainId
+      readonly property string itemFolder: folder
       readonly property string itemName: name
-      readonly property string itemDescription: description
-      readonly property string itemCreator: creator
       readonly property int itemMajor: major
       readonly property int itemMinor: minor
       readonly property int itemPatch: patch
-      width: appList.width
+      width: appSelectList.width
       height: 50
 
       Rectangle {
         id: delegateRectangle
         anchors.verticalCenter: parent.verticalCenter
         anchors.horizontalCenter: parent.horizontalCenter
-        color: (appList.currentIndex == index) ? "#9400F6" : "#2E2C3D"
+        color: (appSelectList.currentIndex == index) ? "#9400F6" : "#2E2C3D"
         radius: 5
         height: parent.height
         width: parent.width * 0.9
-
-        Image {
-          id: delegateIcon
+        AVMEAsyncImage {
+          id: delegateImage
+          property var imgUrl: "https://raw.githubusercontent.com"
+            + "/avme/avme-wallet-applications/main/apps/"
+            + itemChainId + "/" + itemFolder + "/icon.png"
           anchors.verticalCenter: parent.verticalCenter
           width: parent.height * 0.9
           height: width
-          antialiasing: true
-          smooth: true
-          fillMode: Image.PreserveAspectFit
-          source: itemIcon
-        }
-        Text {
-          id: delegateCreator
-          anchors.verticalCenter: parent.verticalCenter
-          width: (parent.width * 0.4)
-          x: delegateIcon.width
-          color: "white"
-          font.pixelSize: 14.0
-          padding: 5
-          elide: Text.ElideRight
-          text: itemCreator
+          Component.onCompleted: { qmlSystem.checkIfUrlExists(Qt.resolvedUrl(imgUrl)) }
+          Connections {
+            target: qmlSystem
+            function onUrlChecked(link, b) {
+              if (link == delegateImage.imgUrl) {
+                delegateImage.imageSource = (b)
+                  ? delegateImage.imgUrl : "qrc:/img/unknown_token.png"
+              }
+            }
+          }
         }
         Text {
           id: delegateName
           anchors.verticalCenter: parent.verticalCenter
-          anchors.right: parent.right
-          anchors.rightMargin: parent.width * 0.05
-          width: parent.width * 0.4
+          width: (parent.width * 0.7)
+          x: delegateImage.width
           color: "white"
           font.pixelSize: 14.0
+          padding: 5
           elide: Text.ElideRight
           text: itemName
+        }
+        Text {
+          id: delegateVersion
+          anchors.verticalCenter: parent.verticalCenter
+          width: (parent.width * 0.2)
+          x: delegateImage.width + delegateName.width
+          color: "white"
+          font.pixelSize: 14.0
+          padding: 5
+          elide: Text.ElideRight
+          text: itemMajor + "." + itemMinor + "." + itemPatch
         }
       }
       MouseArea {
         id: delegateMouseArea
         anchors.fill: parent
-        onClicked: appList.currentIndex = index
+        onClicked: {
+          appSelectList.currentIndex = index
+          appSelectList.forceActiveFocus()
+        }
       }
     }
   }

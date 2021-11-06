@@ -9,8 +9,6 @@ import "qrc:/qml/components"
 // Popup for viewing the Wallet's seed.
 AVMEPopup {
   id: viewSeedPopup
-  widthPct: 0.7
-  heightPct: 0.6
   property string newWalletPass
   property string newWalletSeed
   property color popupBgColor: "#1C2029"
@@ -21,6 +19,7 @@ AVMEPopup {
     btnCopy.enabled = false
     passInput.focus = true
   }
+  onAboutToHide: viewSeedPopup.clean()
 
   function showSeed() {
     if (seedText.timer.running) { seedText.timer.stop() }
@@ -81,7 +80,7 @@ AVMEPopup {
       id: seedText
       property alias timer: seedTextTimer
       width: (parent.width * 0.9)
-      height: 50
+      height: 75
       anchors.horizontalCenter: parent.horizontalCenter
       horizontalAlignment: Text.AlignHCenter
       verticalAlignment: Text.AlignVCenter
@@ -90,6 +89,7 @@ AVMEPopup {
       selectionColor: popupSelectionColor
       color: "#FFFFFF"
       font.pixelSize: 14.0
+      wrapMode: Text.Wrap
       background: Rectangle {
         width: parent.width
         height: parent.height
@@ -107,10 +107,7 @@ AVMEPopup {
       AVMEButton {
         id: btnClose
         text: "Close"
-        onClicked: {
-          viewSeedPopup.clean()
-          viewSeedPopup.close()
-        }
+        onClicked: viewSeedPopup.close()
       }
       AVMEButton {
         id: btnCopy

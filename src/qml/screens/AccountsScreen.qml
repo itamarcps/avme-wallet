@@ -42,6 +42,7 @@ Item {
 
   Component.onCompleted: {
     qmlSystem.loadLedgerDB()
+    qmlSystem.loadConfigDB()
     fetchAccounts()
   }
   function fetchAccounts() {
@@ -59,13 +60,6 @@ Item {
     qmlSystem.getAllAVAXBalances(addList)
   }
 
-  function useSeed() {
-    chooseAccountPopup.foreignSeed = seedPopup.fullSeed
-    seedPopup.clean()
-    seedPopup.close()
-    chooseAccountPopup.open()
-  }
-
   function checkLedger() {
     var data = qmlSystem.checkForLedger()
     if (data.state) {
@@ -81,45 +75,93 @@ Item {
 
   Timer { id: ledgerRetryTimer; interval: 250; onTriggered: parent.checkLedger() }
 
-  AVMEPopupChooseAccount { id: chooseAccountPopup }
-  AVMEPopupSeed { id: seedPopup }
-
   AVMEPanelAccountSelect {
     id: accountSelectPanel
+    width: parent.width * 0.95
     height: parent.height * 0.9
-    width: parent.width * 0.9
     anchors.centerIn: parent
-    btnCreate.onClicked: chooseAccountPopup.open()
-    btnImport.onClicked: seedPopup.open()
-    btnSelect.onClicked: {
+    btnAdd.onClicked: addAccountSelectPopup.open()
+    btnSelect.onClicked: chooseSelectedAccount()
+    btnErase.onClicked: confirmErasePopup.open()
+    function chooseSelectedAccount() {
+      qmlSystem.cleanAndCloseAccount()
       if (accountList.currentItem.itemIsLedger) {
-        qmlSystem.setLedgerFlag(true);
+        qmlSystem.setLedgerFlag(true)
         qmlSystem.setCurrentHardwareAccount(accountList.currentItem.itemAddress)
         qmlSystem.setCurrentHardwareAccountPath(accountList.currentItem.itemDerivationPath)
-        qmlSystem.importLedgerAccount(qmlSystem.getCurrentHardwareAccount(), qmlSystem.getCurrentHardwareAccountPath());
-        qmlSystem.setDefaultPathFolders()
-        qmlSystem.loadTokenDB()
-        qmlSystem.loadHistoryDB(qmlSystem.getCurrentAccount())
-        qmlSystem.loadARC20Tokens()
-        accountHeader.getAddress()
-        qmlSystem.goToOverview()
-        qmlSystem.setScreen(content, "qml/screens/OverviewScreen.qml")
+        qmlSystem.importLedgerAccount(qmlSystem.getCurrentHardwareAccount(), qmlSystem.getCurrentHardwareAccountPath())
       } else {
-        qmlSystem.setLedgerFlag(false);
+        qmlSystem.setLedgerFlag(false)
         qmlSystem.setCurrentAccount(accountList.currentItem.itemAddress)
-        qmlSystem.loadTokenDB()
-        qmlSystem.loadHistoryDB(qmlSystem.getCurrentAccount())
-        qmlSystem.loadARC20Tokens()
-        accountHeader.getAddress()
-        qmlSystem.goToOverview()
-        qmlSystem.setScreen(content, "qml/screens/OverviewScreen.qml")
       }
+      qmlSystem.loadHistoryDB(qmlSystem.getCurrentAccount())
+      qmlSystem.startWSServer()
+      accountHeader.getAddress()
+      window.menu.changeScreen("Overview")
     }
-    btnCreateLedger.onClicked: checkLedger()
-    btnErase.onClicked: confirmErasePopup.open()
   }
 
-  // Popup for waiting for Accounts to be created/imported/erased, respectively
+  AVMEPopup {
+    id: addAccountSelectPopup
+    widthPct: 0.4
+    heightPct: 0.45
+    Column {
+      width: parent.width * 0.9
+      height: parent.height * 0.9
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: 20
+
+      Text {
+        id: addAccountText
+        color: "#FFFFFF"
+        horizontalAlignment: Text.AlignHCenter
+        anchors.horizontalCenter: parent.horizontalCenter
+        font.pixelSize: 14.0
+        text: "Which kind of Account do you want to add?"
+      }
+      AVMEButton {
+        id: addNormalBtn
+        width: parent.width
+        text: "Add Normal Account"
+        onClicked: {
+          chooseAccountPopup.foreignSeed = ""
+          addAccountSelectPopup.close()
+          chooseAccountPopup.open()
+        }
+      }
+      AVMEButton {
+        id: addSeedBtn
+        width: parent.width
+        text: "Import Account From Seed"
+        onClicked: {
+          addAccountSelectPopup.close()
+          chooseAccountPopup.open()
+          seedPopup.open()
+        }
+      }
+      AVMEButton {
+        id: addLedgerBtn
+        width: parent.width
+        text: "Import Account From Ledger"
+        onClicked: {
+          addAccountSelectPopup.close()
+          checkLedger()
+        }
+      }
+      AVMEButton {
+        id: addBackBtn
+        width: parent.width
+        text: "Back"
+        onClicked: addAccountSelectPopup.close()
+      }
+    }
+  }
+
+  AVMEPopupChooseAccount { id: chooseAccountPopup }
+  AVMEPopupSeed { id: seedPopup; clearBtn.visible: false }
+  AVMEPopupLedger { id: ledgerPopup }
+
   AVMEPopup {
     id: accountInfoPopup
     property alias text: accountInfoText.text
@@ -134,7 +176,6 @@ Item {
     }
   }
 
-  // Info popup for if the seed import fails
   AVMEPopupInfo {
     id: seedFailPopup
     icon: "qrc:/img/warn.png"
@@ -179,15 +220,23 @@ Item {
       confirmErasePopup.close()
     }
   }
-  AVMEPopupLedger {
-    id: ledgerPopup
-  }
 
   AVMEPopupInfo {
     id: ledgerFailPopup
     icon: "qrc:/img/warn.png"
     onAboutToHide: ledgerRetryTimer.stop()
     okBtn.text: "Close"
+  }
+
+  AVMEPopupInfo {
+    id: invalidCustomPath
+    icon: "qrc:/img/warn.png"
+    info: "Invalid custom derivation path!"
+    okBtn.text: "Close"
+  }
+
+  AVMEPopupCustomPath {
+    id: ledgerCustomPathPopup
   }
 }
 

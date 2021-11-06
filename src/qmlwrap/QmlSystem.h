@@ -5,11 +5,15 @@
 #define QMLSYSTEM_H
 
 #include <QtConcurrent/qtconcurrentrun.h>
+#include <QtCore/QDateTime>
 #include <QtCore/QFile>
+#include <QtCore/QStandardPaths>
 #include <QtCore/QString>
 #include <QtCore/QStringList>
+#include <QtCore/QUrl>
 #include <QtCore/QVariant>
 #include <QtGui/QClipboard>
+#include <QtNetwork/QSslSocket>
 #include <QtQml/QQmlContext>
 #include <QtQml/QQmlApplicationEngine>
 #include <QtWidgets/QApplication>
@@ -17,14 +21,19 @@
 #include <lib/ledger/ledger.h>
 
 #include <network/API.h>
+#include <network/Server.h>
 #include <core/BIP39.h>
 #include <core/Utils.h>
 #include <core/Wallet.h>
 #include <network/Graph.h>
 #include <network/Pangolin.h>
 #include <network/Staking.h>
+#include <network/ParaSwap.h>
 
 #include "version.h"
+
+class Server;  // https://stackoverflow.com/a/4964508
+class session;
 
 /**
  * Class for wrapping C++ and QML together.
@@ -34,26 +43,50 @@ class QmlSystem : public QObject {
 
   private:
     Wallet w;
+    Server s;
     ledger::device ledgerDevice;
-    bool firstLoad;
     bool ledgerFlag = false;
     QString currentHardwareAccount;
     QString currentHardwareAccountPath;
+    QQmlApplicationEngine *engine = nullptr;
+
+    // Permission list of websites allowed to join.
+    std::vector<std::pair<std::string,bool>> permissionList;
+
+    // Mutex locks for when dealing with WS Server.
+    std::mutex permissionListMutex;
+    std::mutex globalUserInputRequest;
+    std::mutex PLuserInputRequest;
+    std::mutex PLuserInputAnswer;
+    std::mutex requestTransactionMutex;
+    std::mutex RTuserInputRequest;
+    std::mutex RTuserInputAnswer;
+
+    // String that will hold the TXID of an approved transaction.
+    std::string RTtxid = "";
 
   public slots:
-    // Clean database, threads, etc before closing the program
-    void cleanAndClose() {
+    // Clean database, threads, etc before changing the Account and Wallet, respectively
+    void cleanAndCloseAccount() {
+      this->w.closeHistoryDB();
+      stopWSServer();
+    }
+    void cleanAndCloseWallet() {
       this->w.closeTokenDB();
       this->w.closeHistoryDB();
       this->w.closeLedgerDB();
       this->w.closeAppDB();
+      this->w.closeAddressDB();
+      this->w.closeConfigDB();
+      stopWSServer();
+      // Wait untill all threads from QtThreadPool exits
+      QThreadPool::globalInstance()->waitForDone(-1); // -1 to ignore timeout https://doc.qt.io/qt-5/qthreadpool.html#waitForDone
       return;
     }
 
   signals:
     // Common signals
-    void hideMenu();
-    void goToOverview();
+    void urlChecked(QString link, bool b);
 
     // Start/Wallet screen signals
     void walletCreated(bool success);
@@ -74,21 +107,42 @@ class QmlSystem : public QObject {
     void historyLoaded(QString data);
 
     // Send screen signals
-    void txStart(
-      QString operation, QString from,
-      QString to, QString value,
-      QString txData, QString gas,
-      QString gasPrice, QString pass
-    );
     void operationOverride(
       QString op, QString amountCoin, QString amountToken, QString amountLP
     );
-    void txBuilt(bool b);
-    void txSigned(bool b, QString msg);
-    void txSent(bool b, QString linkUrl);
-    void txRetry();
-    void ledgerRequired();
-    void ledgerDone();
+    void txBuilt(bool b, QString randomID);
+    void txSigned(bool b, QString msg, QString randomID);
+    void txSent(bool b, QString linkUrl, QString txid, QString msg, QString randomID);
+    void txConfirmed(bool b, QString txid, QString randomID);
+    void txRetry(QString randomID);
+    void ledgerRequired(QString randomID);
+    void ledgerDone(QString randomID);
+    void accountNonceUpdate(QString nonce);
+
+    // Applications screen signals
+    void appListDownloaded();
+    void appListDownloadFailed();
+    void appDownloadProgressUpdated(int progress, int total);
+    void appInstalled(bool success);
+    void appLoaded(QString folderPath);
+
+    // Signal for request user input to give permission for said website
+    void askForPermission(QString website_);
+
+    // Signal to request user to sign a given transaction
+    void askForTransaction(QString data, QString from, QString gas, QString to, QString value, QString website_);
+
+    // Signals for ParaSwap exchanging
+    void gotParaSwapTokenPrices(QString priceRoute, QString id, QString request);
+    void gotParaSwapTransactionData(QString transactionData, QString id, QString request);
+
+    // Signals for when testing a user typed API
+
+    void apiReturnedSuccessfully(bool status, QString type);
+
+    // Signal for letting the user know there is a update
+
+    void walletRequireUpdate();
 
   public:
     // ======================================================================
@@ -96,15 +150,22 @@ class QmlSystem : public QObject {
     // ======================================================================
 
     // Getters/Setters for private vars
-    Q_INVOKABLE bool getFirstLoad() { return firstLoad; }
-    Q_INVOKABLE void setFirstLoad(bool b) { firstLoad = b; }
     Q_INVOKABLE bool getLedgerFlag() { return ledgerFlag; }
     Q_INVOKABLE void setLedgerFlag(bool b) { ledgerFlag = b; }
     Q_INVOKABLE void setCurrentHardwareAccount(QString b) { currentHardwareAccount = b; }
     Q_INVOKABLE QString getCurrentHardwareAccount() { return currentHardwareAccount; }
     Q_INVOKABLE void setCurrentHardwareAccountPath(QString b) { currentHardwareAccountPath = b; }
     Q_INVOKABLE QString getCurrentHardwareAccountPath() { return currentHardwareAccountPath; }
+    void setEngine(QQmlApplicationEngine *targetEngine) { engine = targetEngine;}; // INVOKATION FROM QML SHOULD *NOT* BE ALLOWED!
 
+    // Get, save and delete the path for the last opened Wallet, respectively.
+    // Get returns an empty string if the path doesn't exist.
+    Q_INVOKABLE QString getLastWalletPath();
+    Q_INVOKABLE bool saveLastWalletPath();
+    Q_INVOKABLE bool deleteLastWalletPath();
+
+    // Trim component cache. Removes *only* the data not being used.
+    Q_INVOKABLE void trimComponentCache() { engine->trimComponentCache(); }
 
     // Get the project's version
     Q_INVOKABLE QString getProjectVersion();
@@ -112,8 +173,10 @@ class QmlSystem : public QObject {
     // Open the "About Qt" window
     Q_INVOKABLE void openQtAbout();
 
-    // Change the current loaded screen
+    // Change the current loaded screen from the qrc resource file or a
+    // local file, respectively.
     Q_INVOKABLE void setScreen(QObject* loader, QString qmlFile);
+    Q_INVOKABLE void setLocalScreen(QObject* loader, QString qmlFile);
 
     // Copy a string to the system clipboard
     Q_INVOKABLE void copyToClipboard(QString str);
@@ -124,12 +187,15 @@ class QmlSystem : public QObject {
     // Get the default path for the Wallet
     Q_INVOKABLE QString getDefaultWalletPath();
 
+    // Check if the default Wallet path exists
+    Q_INVOKABLE bool defaultWalletPathExists();
+
     // Remove the "file://" prefix from a folder path
     Q_INVOKABLE QString cleanPath(QString path);
 
     // Convert fixed point to Wei and vice-versa
     Q_INVOKABLE QString fixedPointToWei(QString amount, int decimals);
-    Q_INVOKABLE QString weiToFixedPoint(QString amount, int digits);
+    Q_INVOKABLE QString weiToFixedPoint(QString amount, int decimals);
 
     // Check if a balance is zero or higher than another, respectively
     Q_INVOKABLE bool balanceIsZero(QString amount, int decimals);
@@ -137,6 +203,21 @@ class QmlSystem : public QObject {
 
     // Get the given hardcoded contract address
     Q_INVOKABLE QString getContract(QString name);
+
+    // Store the password using a thread, retrieve it and reset it manually, respectively.
+    Q_INVOKABLE void storePass(QString pass);
+    Q_INVOKABLE QString retrievePass();
+    Q_INVOKABLE void resetPass();
+
+    // Check if a URL exists (has data in it).
+    Q_INVOKABLE void checkIfUrlExists(QUrl url);
+
+    // Get/Set a given value in the Settings screen.
+    Q_INVOKABLE QString getConfigValue(QString key);
+    Q_INVOKABLE bool setConfigValue(QString key, QString value);
+
+    // Check if wallet is on the most updated version
+    Q_INVOKABLE void checkWalletVersion();
 
     // ======================================================================
     // START/WALLET SCREEN FUNCTIONS
@@ -171,6 +252,9 @@ class QmlSystem : public QObject {
     // Check if a BIP39 seed is valid
     Q_INVOKABLE bool seedIsValid(QString seed);
 
+    // Check if a DApp exists in the given folder
+    Q_INVOKABLE bool checkForApp(QString folder);
+
     // ======================================================================
     // ACCOUNT SCREEN FUNCTIONS
     // ======================================================================
@@ -200,10 +284,8 @@ class QmlSystem : public QObject {
     // Emits accountCreated() on success, accountCreationFailed() on failure
     Q_INVOKABLE void createAccount(QString seed, int index, QString name, QString pass);
 
-    // Import a Ledger account to the Wallet DB
+    // Import and delete a Ledger account to/from the Wallet DB, respectively.
     Q_INVOKABLE void importLedgerAccount(QString address, QString path);
-
-    // Delete a ledger account on the wallet DB
     Q_INVOKABLE bool deleteLedgerAccount(QString address);
 
     // Erase an Account
@@ -211,6 +293,9 @@ class QmlSystem : public QObject {
 
     // Check if Account exists
     Q_INVOKABLE bool accountExists(QString account);
+
+    // Same as above but for Ledger accounts
+    Q_INVOKABLE bool ledgerAccountExists(QString account);
 
     // Get an Account's private keys
     Q_INVOKABLE QString getPrivateKeys(QString account, QString pass);
@@ -224,16 +309,13 @@ class QmlSystem : public QObject {
     // Get the balances of all registered tokens for a specific Account
     Q_INVOKABLE void getAccountAllBalances(QString address);
 
-    // (Re)Load the token and tx history databases, respectively.
+    // (Re)Load the respective wallet databases.
     Q_INVOKABLE bool loadTokenDB();
     Q_INVOKABLE bool loadHistoryDB(QString address);
-
-    // (Re)Load ledger DB which contains ledger accoutns
-
     Q_INVOKABLE bool loadLedgerDB();
-
-    // Set/Create default folder path when loading with Ledger.
-    Q_INVOKABLE void setDefaultPathFolders();
+    Q_INVOKABLE bool loadAppDB();
+    Q_INVOKABLE bool loadAddressDB();
+    Q_INVOKABLE bool loadConfigDB();
 
     // ======================================================================
     // OVERVIEW SCREEN FUNCTIONS
@@ -283,8 +365,27 @@ class QmlSystem : public QObject {
     // Emits historyLoaded()
     Q_INVOKABLE void listAccountTransactions(QString address);
 
+    // Update a given transaction's status.
+    Q_INVOKABLE void updateTxStatus(QString txHash);
+
+    // Erase the whole transaction history.
+    Q_INVOKABLE void eraseAllHistory();
+
     // ======================================================================
-    // SEND SCREEN FUNCTIONS
+    // CONTACTS SCREEN FUNCTIONS
+    // ======================================================================
+
+    // List the Wallet's contacts.
+    Q_INVOKABLE QVariantList listWalletContacts();
+
+    // Add, remove, import and export contacts, respectively.
+    Q_INVOKABLE bool addContact(QString address, QString name);
+    Q_INVOKABLE bool removeContact(QString address);
+    Q_INVOKABLE int importContacts(QString file);
+    Q_INVOKABLE int exportContacts(QString file);
+
+    // ======================================================================
+    // TRANSACTION RELATED FUNCTIONS
     // ======================================================================
 
     // Create a RegExp for transaction amount inputs
@@ -312,24 +413,22 @@ class QmlSystem : public QObject {
       QString senderAmount, QString receiverAmount, int decimals
     );
 
+    Q_INVOKABLE void updateAccountNonce(QString from);
+
     // Make a transaction with the collected data.
     // Emits txBuilt(), txSigned(), txSent() and txRetry()
-
     Q_INVOKABLE void makeTransaction(
       QString operation, QString from, QString to,
       QString value, QString txData, QString gas,
-      QString gasPrice, QString pass
+      QString gasPrice, QString pass, QString txNonce, QString randomID
     );
+
+    // Check if the transaction was confirmed or not, and if it's "stuck"
+    Q_INVOKABLE void checkTransactionFor15s(QString txid, QString randomID);
 
     // ======================================================================
     // EXCHANGE/LIQUIDITY/STAKING SCREEN FUNCTIONS
     // ======================================================================
-
-    // Get the first (lower) address from a pair
-    Q_INVOKABLE QString getFirstFromPair(QString assetAddressA, QString assetAddressB);
-
-    // Check if approval needs to be refreshed
-    Q_INVOKABLE bool isApproved(QString amount, QString allowed);
 
     /**
      * Calculate the estimated output amount and price impact for a
@@ -353,9 +452,6 @@ class QmlSystem : public QObject {
       QString asset1Reserves, QString asset2Reserves, QString percentage, QString pairBalance
     );
 
-    // Estimate the amount of coin/token that will be exchanged
-    Q_INVOKABLE QString queryExchangeAmount(QString amount, QString fromName, QString toName);
-
     // Calculate the Account's share in AVAX/AVME/LP in the pool, respectively
     Q_INVOKABLE QVariantMap calculatePoolShares(
       QString asset1Reserves, QString asset2Reserves,
@@ -367,16 +463,72 @@ class QmlSystem : public QObject {
       QString lowerReserves, QString higherReserves, QString totalLiquidity, QString LPTokenValue
     );
 
+    // Same as above but for ParaSwap
+    Q_INVOKABLE void getParaSwapTokenPrices(
+      QString srcToken, QString srcDecimals,
+      QString destToken, QString destDecimals,
+      QString weiAmount, QString chainID, QString side, QString id
+    );
+    Q_INVOKABLE void getParaSwapTransactionData(
+      QString priceRouteStr, QString slippage,
+      QString userAddress, QString fee, QString id
+    );
+
+    // ======================================================================
+    // WEBSOCKET SERVER FUNCTIONS
+    // ======================================================================
+
+    // Process the received messages from the WS server
+    void handleServer(std::string inputStr, std::shared_ptr<session> session_);
+
+    // Set WS server to a pointer of this
+    void setWSServer();
+
+    // Start WS Server when loading an account
+    Q_INVOKABLE void startWSServer();
+
+    // Stop WS Server when closing an account
+    Q_INVOKABLE void stopWSServer();
+
+    // Ask for user input to approve/refuse a transaction
+    Q_INVOKABLE void addToPermissionList(QString website, bool allow);
+
+    Q_INVOKABLE void loadPermissionList();
+
+    Q_INVOKABLE void requestedTransactionStatus(bool approved, QString txid);
+
+    Q_INVOKABLE QString getWebsitePermissionList();
+
+    Q_INVOKABLE void clearWebsitePermissionList();
+
+    Q_INVOKABLE void testAPI(QString host, QString port, QString target, QString type);
+
+    Q_INVOKABLE void setWalletAPI(QString host, QString port, QString target);
+
+    Q_INVOKABLE void setWebSocketAPI(QString host, QString port, QString target, QString pluginPort);
+
     // ======================================================================
     // APPLICATIONS SCREEN FUNCTIONS
     // ======================================================================
-    // TODO
 
     // Download the JSON file from the repo containing the latest DApp info.
-    //Q_INVOKABLE void downloadAppList();
+    Q_INVOKABLE void downloadAppList();
 
     // Load the DApp list from the stored JSON file.
-    //Q_INVOKABLE void loadApps();
+    Q_INVOKABLE QVariantList loadAppsFromList();
+
+    // Load the installed DApps from the database.
+    Q_INVOKABLE QVariantList loadInstalledApps();
+
+    // Get the full DApp folder path.
+    Q_INVOKABLE QString getAppFolderPath(int chainId, QString folder);
+
+    // Check if a DApp is installed, install and uninstall it, respectively.
+    // Installs are atomic - either all files are downloaded and the DApp is
+    // properly registered in the database, or the install fails altogether.
+    Q_INVOKABLE bool appIsInstalled(QString folder);
+    Q_INVOKABLE void installApp(QVariantMap data);
+    Q_INVOKABLE bool uninstallApp(QVariantMap data);
 };
 
 #endif  //QMLSYSTEM_H

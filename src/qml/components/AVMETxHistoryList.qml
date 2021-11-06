@@ -24,6 +24,8 @@ ListView {
   clip: true
   boundsBehavior: Flickable.StopAtBounds
 
+  Component.onCompleted: forceActiveFocus()
+
   // Header (top bar)
   header: Rectangle {
     id: listHeader
@@ -37,7 +39,7 @@ ListView {
     Text {
       id: headerDateTime
       anchors.verticalCenter: parent.verticalCenter
-      width: parent.width / 2
+      width: (parent.width * 0.4)
       x: 16 + 5
       color: "white"
       font.pixelSize: 14.0
@@ -47,7 +49,7 @@ ListView {
     Text {
       id: headerOperation
       anchors.verticalCenter: parent.verticalCenter
-      width: parent.width / 2
+      width: (parent.width * 0.6)
       x: headerDateTime.x + headerDateTime.width
       color: "white"
       font.pixelSize: 14.0
@@ -62,9 +64,8 @@ ListView {
     id: listDelegate
     Item {
       id: listItem
-      readonly property string itemTxLink: txlink
       readonly property string itemOperation: operation
-      //readonly property string itemHex: hex
+      readonly property string itemHex: hex
       //readonly property string itemType: type
       //readonly property string itemCode: code
       readonly property string itemFrom: from
@@ -75,7 +76,7 @@ ListView {
       //readonly property string itemNonce: nonce
       readonly property string itemGas: gas
       readonly property string itemPrice: price
-      //readonly property string itemHash: hash
+      readonly property string itemHash: hash
       //readonly property string itemV: v
       //readonly property string itemR: r
       //readonly property string itemS: s
@@ -83,21 +84,22 @@ ListView {
       readonly property string itemUnixTime: unixtime
       readonly property bool itemConfirmed: confirmed
       readonly property bool itemInvalid: invalid
-      width: parent.width
+      width: historyList.width
       height: 30
 
-      Image {
+      AVMEAsyncImage {
         id: delegateConfirmed
         width: 16
         height: 16
         x: 5
+        loading: false
         anchors.verticalCenter: parent.verticalCenter
-        source: (itemConfirmed) ? "qrc:/img/ok.png" : "qrc:/img/no.png"
+        imageSource: (itemConfirmed) ? "qrc:/img/ok.png" : "qrc:/img/no.png"
       }
       Text {
         id: delegateDateTime
         anchors.verticalCenter: parent.verticalCenter
-        width: parent.width / 2
+        width: (parent.width * 0.4)
         x: delegateConfirmed.x + delegateConfirmed.width
         color: "white"
         font.pixelSize: 14.0
@@ -108,7 +110,7 @@ ListView {
       Text {
         id: delegateOperation
         anchors.verticalCenter: parent.verticalCenter
-        width: parent.width / 2
+        width: (parent.width * 0.5)
         x: delegateDateTime.x + delegateDateTime.width
         color: "white"
         font.pixelSize: 14.0

@@ -55,6 +55,12 @@ class Wallet {
     h256 passSalt;
     int passIterations = 100000;
 
+    // The raw password (optionally) stored by the user, the deadline for
+    // cleaning it, and the thread that cleans it.
+    std::string storedPass = "";
+    std::time_t storedPassDeadline = 0;
+    boost::thread storedPassThread;
+
     // List of registered ARC20 tokens.
     std::vector<ARC20Token> ARC20Tokens;
 
@@ -73,16 +79,19 @@ class Wallet {
     std::vector<TxData> getCurrentAccountHistory() { return this->currentAccountHistory; }
     std::map<std::string, std::string> getAccounts() { return this->accounts; }
     std::map<std::string, std::string> getLedgerAccounts() { return this->ledgerAccounts; }
+    std::string getStoredPass() { return this->storedPass; }
 
     // ======================================================================
     // WALLET MANAGEMENT
     // ======================================================================
 
     /**
-     * Create/Set the folder path for the wallet
-     * Used when loading ledger.
+     * Handle a thread in the background for remembering the user's password.
+     * When deadline is reached or manually reset, the password is cleaned from memory.
      */
-    void setDefaultPathFolders();
+    void storedPassThreadHandler();
+    void startPassThread(std::string pass, std::time_t deadline);
+    void stopPassThread();
 
     /**
      * Create a new Wallet, which should be loaded manually afterwards.
@@ -116,16 +125,20 @@ class Wallet {
     bool auth(std::string pass);
 
     /**
-     * (Re)Load and close the token, tx history, Ledger and DApp databases, respectively.
+     * (Re)Load and close the Wallet's databases.
      */
     bool loadTokenDB();
     bool loadHistoryDB(std::string address);
     bool loadLedgerDB();
     bool loadAppDB();
+    bool loadAddressDB();
+    bool loadConfigDB();
     void closeTokenDB();
     void closeHistoryDB();
     void closeLedgerDB();
     void closeAppDB();
+    void closeAddressDB();
+    void closeConfigDB();
 
     // ======================================================================
     // TOKEN MANAGEMENT
@@ -203,6 +216,12 @@ class Wallet {
     bool accountExists(std::string address);
 
     /**
+     * Same as above but for Ledger accounts.
+     * The logic is different since Ledger accounts are stored in the database.
+     */
+    bool ledgerAccountExists(std::string address);
+
+    /**
      * Set the current Account to be used by the Wallet.
      */
     void setCurrentAccount(std::string address);
@@ -232,11 +251,37 @@ class Wallet {
     // ======================================================================
 
     /**
-     * (Re)Load the available and installed DApps on the Wallet, respectively.
+     * Get the registered DApps from the database.
+     * Returns a json array with the registered DApps.
      */
-    // TODO
-    //void loadAvailableApps();
-    //void loadInstalledApps();
+    json getRegisteredApps();
+
+    /**
+     * Check if a DApp is registered, register and unregister it, respectively.
+     * If the DApp exists in the database, it's considered as "installed".
+     */
+    bool appIsRegistered(std::string folder);
+    bool registerApp(
+      int chainId, std::string folder, std::string name,
+      int major, int minor, int patch
+    );
+    bool unregisterApp(std::string folder);
+
+    // ======================================================================
+    // CONTACTS MANAGEMENT
+    // ======================================================================
+
+    // Get the registered contacts in the Wallet.
+    std::map<std::string, std::string> getContacts();
+
+    // Add and remove a contact, respectively.
+    bool addContact(std::string address, std::string name);
+    bool removeContact(std::string address);
+
+    // Import contacts from/Export contacts to a JSON file, respectively.
+    // Return the number of imported/exported contacts.
+    int importContacts(std::string file);
+    int exportContacts(std::string file);
 
     // ======================================================================
     // TRANSACTION MANAGEMENT
@@ -252,7 +297,7 @@ class Wallet {
      */
     TransactionSkeleton buildTransaction(
       std::string from, std::string to, std::string value,
-      std::string gasLimit, std::string gasPrice, std::string dataHex = ""
+      std::string gasLimit, std::string gasPrice, std::string dataHex, std::string txNonce
     );
 
     /**
@@ -266,7 +311,7 @@ class Wallet {
      * Send a signed transaction for broadcast and store it in history if successful.
      * Returns a link to the transaction in the blockchain, or an empty string on failure.
      */
-    std::string sendTransaction(std::string txidHex, std::string operation);
+    json sendTransaction(std::string txidHex, std::string operation);
 
     // ======================================================================
     // HISTORY MANAGEMENT
@@ -289,11 +334,23 @@ class Wallet {
     bool saveTxToHistory(TxData tx);
 
     /**
-     * Query the confirmed status of *all* transactions made from the
-     * current Account in the API and update accordingly, then reload the list.
-     * Returns true on success, false on failure.
+     * Update the confirmed status of a given transaction
+     * made from the current Account in the API.
      */
-    bool updateAllTxStatus();
+    void updateTxStatus(std::string txHash);
+
+    /**
+     * Erase all the entries from the tx history database.
+     */
+    void eraseAllHistory();
+
+    // ======================================================================
+    // SETTINGS MANAGEMENT
+    // ======================================================================
+
+    // Get/Set a given value in the Settings screen.
+    std::string getConfigValue(std::string key);
+    bool setConfigValue(std::string key, std::string value);
 };
 
 #endif // WALLET_H

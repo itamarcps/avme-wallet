@@ -4,8 +4,11 @@
 #include "main-gui.h"
 
 // Implementation of AVME Wallet as a GUI (Qt) program.
-
 int main(int argc, char *argv[]) {
+  // Setup boost::filesystem environment and Qt's <APPNAME> for QStandardPaths
+  boost::nowide::nowide_filesystem();
+  QApplication::setApplicationName("AVME");
+
   // Get the system's DPI scale using a dummy temp QApplication
   QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
   #if !defined(__APPLE__)
@@ -15,11 +18,17 @@ int main(int argc, char *argv[]) {
     qputenv("QT_SCALE_FACTOR", QByteArray::number(scaleFactor));
   #endif
 
-  // Create the actual application and register our custom classes into it
+  // Create the actual application, register our custom classes into it and
+  // initialize the global thread pool to 128 threads.
+  // We should never reach this limit, but a high thread count should
+  // avoid taking too long to answer towards the websocket server.
   QApplication app(argc, argv);
   QQmlApplicationEngine engine;
-  qmlRegisterType<QmlSystem>("QmlSystem", 1, 0, "QmlSystem");
+  QmlSystem qmlsystem;
+  qmlsystem.setEngine(&engine);
+  engine.rootContext()->setContextProperty("qmlSystem", &qmlsystem);
   qmlRegisterType<QmlApi>("QmlApi", 1, 0, "QmlApi");
+  QThreadPool::globalInstance()->setMaxThreadCount(128);
 
   // Set the app's text font and icon
   QFontDatabase::addApplicationFont(":/fonts/IBMPlexMono-Bold.ttf");
@@ -33,8 +42,10 @@ int main(int argc, char *argv[]) {
   // Load the main screen, link the required signals/slots and start the app
   engine.load(QUrl(QStringLiteral("qrc:/qml/screens/main.qml")));
   if (engine.rootObjects().isEmpty()) return -1;
-  QmlSystem qmlsystem;
-  QObject::connect(&app, SIGNAL(aboutToQuit()), &qmlsystem, SLOT(cleanAndClose()));
+
+  // Create Websocket server object and connect close button signal
+  qmlsystem.setWSServer();
+  QObject::connect(&app, SIGNAL(aboutToQuit()), &qmlsystem, SLOT(cleanAndCloseWallet()));
   return app.exec();
 }
 

@@ -20,6 +20,8 @@
 #include <QtCore/QDateTime>
 #include <QtConcurrent/qtconcurrentrun.h>
 
+Q_IMPORT_PLUGIN(QGifPlugin)
+Q_IMPORT_PLUGIN(QSvgPlugin)
 #ifdef __MINGW32__
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 // Redefine the WINNT version for MinGW to use Windows 7 instead of XP
@@ -51,6 +53,7 @@ Q_IMPORT_PLUGIN(QtChartsQml2Plugin)
 #include <network/Graph.h>
 #include <network/Pangolin.h>
 #include <network/Staking.h>
+#include <network/ParaSwap.h>
 
 #include <qmlwrap/QmlSystem.h>
 #include <qmlwrap/QmlApi.h>

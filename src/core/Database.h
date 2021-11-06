@@ -44,6 +44,18 @@ class Database {
     leveldb::Status appStatus;
     std::string appValue;
 
+    // The contacts database, options, status and value.
+    leveldb::DB* addressDB;
+    leveldb::Options addressOpts;
+    leveldb::Status addressStatus;
+    std::string addressValue;
+
+    // The settings database, options, status and value.
+    leveldb::DB* configDB;
+    leveldb::Options configOpts;
+    leveldb::Status configStatus;
+    std::string configValue;
+
   public:
     // Constructor. Set up any required options here.
     Database() {
@@ -51,10 +63,9 @@ class Database {
       this->historyOpts.create_if_missing = true;
       this->ledgerOpts.create_if_missing = true;
       this->appOpts.create_if_missing = true;
-      tokenDB = NULL;
-      historyDB = NULL;
-      ledgerDB = NULL;
-      appDB = NULL;
+      this->addressOpts.create_if_missing = true;
+      this->configOpts.create_if_missing = true;
+      tokenDB = historyDB = ledgerDB = appDB = addressDB = configDB = NULL;
     }
 
     // Token database functions.
@@ -67,6 +78,7 @@ class Database {
     bool putTokenDBValue(std::string key, std::string value);
     bool deleteTokenDBValue(std::string key);
     std::vector<std::string> getAllTokenDBValues();
+    void deleteAllTokenDBKeys();
 
     // Tx history database functions.
     bool openHistoryDB(std::string address);
@@ -78,6 +90,7 @@ class Database {
     bool putHistoryDBValue(std::string key, std::string value);
     bool deleteHistoryDBValue(std::string key);
     std::vector<std::string> getAllHistoryDBValues();
+    void deleteAllHistoryDBKeys();
 
     // Ledger account database functions.
     bool openLedgerDB();
@@ -89,6 +102,7 @@ class Database {
     bool putLedgerDBValue(std::string key, std::string value);
     bool deleteLedgerDBValue(std::string key);
     std::vector<std::string> getAllLedgerDBValues();
+    void deleteAllLedgerDBKeys();
 
     // DApp database functions.
     bool openAppDB();
@@ -100,6 +114,31 @@ class Database {
     bool putAppDBValue(std::string key, std::string value);
     bool deleteAppDBValue(std::string key);
     std::vector<std::string> getAllAppDBValues();
+    void deleteAllAppDBKeys();
+
+    // Contacts database functions.
+    bool openAddressDB();
+    std::string getAddressDBStatus();
+    void closeAddressDB();
+    bool isAddressDBOpen();
+    bool addressDBKeyExists(std::string key);
+    std::string getAddressDBValue(std::string key);
+    bool putAddressDBValue(std::string key, std::string value);
+    bool deleteAddressDBValue(std::string key);
+    std::vector<std::string> getAllAddressDBValues();
+    void deleteAllAddressDBKeys();
+
+    // Settings database functions.
+    bool openConfigDB();
+    std::string getConfigDBStatus();
+    void closeConfigDB();
+    bool isConfigDBOpen();
+    bool configDBKeyExists(std::string key);
+    std::string getConfigDBValue(std::string key);
+    bool putConfigDBValue(std::string key, std::string value);
+    bool deleteConfigDBValue(std::string key);
+    std::vector<std::string> getAllConfigDBValues();
+    void deleteAllConfigDBKeys();
 };
 
 #endif  // DATABASE_H

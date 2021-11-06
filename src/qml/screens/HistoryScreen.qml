@@ -5,6 +5,7 @@ import QtQuick 2.9
 import QtQuick.Controls 2.2
 
 import "qrc:/qml/components"
+import "qrc:/qml/popups"
 
 // Screen for showing the transaction history for the Account
 Item {
@@ -14,23 +15,21 @@ Item {
   Connections {
     target: qmlSystem
     function onHistoryLoaded(dataStr) {
+      historyModel.clear()
       if (dataStr != null) {
         var data = JSON.parse(dataStr)
-        if (sortByNew) {
-          for (var i = (data.length - 1); i >= 0; i--) {
-            historyModel.append(data[i])
-          }
-        } else {
-          for (var i = 0; i < data.length; i++) {
-            historyModel.append(data[i])
-          }
+        for (var i = 0; i < data.length; i++) {
+          historyModel.append(data[i])
         }
+        historyModel.sortByTimestamp()
+        historyList.currentIndex = 0
       }
-      if (historyList.count == 0) {
-        infoText.text = "No transactions made yet.<br>Once you make one, it'll appear here."
-      } else {
+      if (historyModel.count > 0) {
         infoText.text = ""
         infoText.visible = false
+      } else {
+        infoText.text = "No transactions made yet.<br>Once you make one, it'll appear here."
+        infoText.visible = true
       }
     }
   }
@@ -44,41 +43,25 @@ Item {
     qmlSystem.listAccountTransactions(qmlSystem.getCurrentAccount())
   }
 
-  // Transaction list
-  Row {
-    id: listBtnRow
-    width: (parent.width * 0.4) - (anchors.margins * 2)
+  AVMEButton {
+    id: eraseAllBtn
+    width: (parent.width * 0.5) - (anchors.margins * 2)
+    enabled: (historyModel.count > 0)
     anchors {
       top: parent.top
       left: parent.left
       margins: 10
     }
-    spacing: 10
-
-    AVMEButton {
-      id: btnSort
-      width: (parent.width * 0.7) - parent.spacing
-      text: (sortByNew) ? "Sorted by Newer" : "Sorted by Older"
-      onClicked: {
-        sortByNew = !sortByNew
-        reloadTransactions()
-      }
-    }
-
-    AVMEButton {
-      id: btnRefresh
-      width: parent.width * 0.3
-      text: "Refresh"
-      onClicked: reloadTransactions()
-    }
+    text: "Erase All History"
+    onClicked: eraseHistoryPopup.open()
   }
 
   // The list itself
   Rectangle {
     id: listRect
-    width: (parent.width * 0.4) - (anchors.margins * 2)
+    width: (parent.width * 0.5) - (anchors.margins * 2)
     anchors {
-      top: listBtnRow.bottom
+      top: eraseAllBtn.bottom
       bottom: parent.bottom
       left: parent.left
       margins: 10
@@ -89,14 +72,23 @@ Item {
     AVMETxHistoryList {
       id: historyList
       anchors.fill: parent
-      model: ListModel { id: historyModel }
+      model: ListModel {
+        id: historyModel
+        function sortByTimestamp() {
+          for (var i = 0; i < count; i++) {
+            for (var j = 0; j < i; j++) {
+              if (get(i).unixtime > get(j).unixtime) { move(i, j, 1) }
+            }
+          }
+        }
+      }
     }
   }
 
   // Transaction details panel
   AVMEPanel {
     id: historyPanel
-    width: (parent.width * 0.6) - (anchors.margins * 2)
+    width: (parent.width * 0.5) - (anchors.margins * 2)
     anchors {
       top: parent.top
       bottom: parent.bottom
@@ -133,7 +125,20 @@ Item {
         width: parent.width
         visible: (historyList.currentItem)
         text: "Open Transaction in Block Explorer"
-        onClicked: Qt.openUrlExternally(historyList.currentItem.itemTxLink)
+        onClicked: Qt.openUrlExternally(
+          "https://snowtrace.io/tx/0x" + historyList.currentItem.itemHex
+        )
+      }
+
+      AVMEButton {
+        id: btnCheckStatus
+        width: parent.width
+        visible: (historyList.currentItem)
+        text: "Refresh Transaction Status"
+        onClicked: {
+          qmlSystem.updateTxStatus(historyList.currentItem.itemHash)
+          qmlSystem.listAccountTransactions(qmlSystem.getCurrentAccount())
+        }
       }
 
       Text {
@@ -154,5 +159,20 @@ Item {
         : ""
       }
     }
+  }
+
+  AVMEPopupYesNo {
+    id: eraseHistoryPopup
+    widthPct: 0.55
+    heightPct: 0.25
+    icon: "qrc:/img/warn.png"
+    info: "Are you sure you want to erase your transaction history?"
+    + "<br>All data will be <b>permanently lost</b>."
+    yesBtn.onClicked: {
+      qmlSystem.eraseAllHistory()
+      eraseHistoryPopup.close()
+      qmlSystem.listAccountTransactions(qmlSystem.getCurrentAccount())
+    }
+    noBtn.onClicked: eraseHistoryPopup.close()
   }
 }

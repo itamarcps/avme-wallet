@@ -9,7 +9,7 @@ import "qrc:/qml/components"
 // Panel for showing a given DApp's details.
 AVMEPanel {
   id: appDetailsPanel
-  title: "Application Details"
+  title: "DApp Details"
 
   Text {
     visible: (appsPanel.selectedApp == null)
@@ -17,7 +17,7 @@ AVMEPanel {
     horizontalAlignment: Text.AlignHCenter
     color: "#FFFFFF"
     font.pixelSize: 24.0
-    text: "No applications<br>selected."
+    text: "No DApps<br>selected."
   }
 
   Column {
@@ -25,25 +25,26 @@ AVMEPanel {
     anchors.centerIn: parent
     spacing: 20
 
-    Row {
+    AVMEAsyncImage {
+      id: appIcon
+      property var imgUrl: "https://raw.githubusercontent.com"
+        + "/avme/avme-wallet-applications/main/apps/"
+        + ((appsPanel.selectedApp != null) ? appsPanel.selectedApp.itemChainId : "")
+        + "/"
+        + ((appsPanel.selectedApp != null) ? appsPanel.selectedApp.itemFolder : "")
+        + "/icon.png"
+      width: 128
+      height: 128
       anchors.horizontalCenter: parent.horizontalCenter
-      spacing: 20
-
-      Image {
-        id: appCreatorIcon
-        height: 64
-        antialiasing: true
-        smooth: true
-        fillMode: Image.PreserveAspectFit
-        source: (appsPanel.selectedApp != null) ? appsPanel.selectedApp.itemDevIcon : ""
-      }
-      Image {
-        id: appIcon
-        height: 64
-        antialiasing: true
-        smooth: true
-        fillMode: Image.PreserveAspectFit
-        source: (appsPanel.selectedApp != null) ? appsPanel.selectedApp.itemIcon : ""
+      onImgUrlChanged: qmlSystem.checkIfUrlExists(Qt.resolvedUrl(imgUrl))
+      Connections {
+        target: qmlSystem
+        function onUrlChecked(link, b) {
+          if (link == appIcon.imgUrl) {
+            appIcon.imageSource = (b)
+              ? appIcon.imgUrl : "qrc:/img/unknown_token.png"
+          }
+        }
       }
     }
 
@@ -51,31 +52,14 @@ AVMEPanel {
       id: appName
       anchors.horizontalCenter: parent.horizontalCenter
       width: (appDetailsPanel.width * 0.9)
-      horizontalAlignment: Text.AlignHCenter
-      color: "#FFFFFF"
-      font.pixelSize: 18.0
-      font.bold: true
-      text: ((appsPanel.selectedApp != null) ? appsPanel.selectedApp.itemName : "")
-    }
-    Text {
-      id: appDescription
-      anchors.horizontalCenter: parent.horizontalCenter
-      width: (appDetailsPanel.width * 0.9)
+      height: 40
       horizontalAlignment: Text.AlignHCenter
       wrapMode: Text.WordWrap
+      elide: Text.ElideRight
       color: "#FFFFFF"
       font.pixelSize: 14.0
-      text: ((appsPanel.selectedApp != null) ? appsPanel.selectedApp.itemDescription : "")
-    }
-    Text {
-      id: appCreator
-      anchors.horizontalCenter: parent.horizontalCenter
-      width: (appDetailsPanel.width * 0.9)
-      horizontalAlignment: Text.AlignHCenter
-      color: "#FFFFFF"
-      font.pixelSize: 14.0
-      text: "<b>Created by:</b> " + ((appsPanel.selectedApp != null)
-      ? appsPanel.selectedApp.itemCreator : "")
+      font.bold: true
+      text: ((appsPanel.selectedApp != null) ? appsPanel.selectedApp.itemName : "")
     }
     Text {
       id: appVersion
@@ -94,41 +78,57 @@ AVMEPanel {
       id: appStatus
       anchors.horizontalCenter: parent.horizontalCenter
       width: (appDetailsPanel.width * 0.9)
+      visible: (appsPanel.selectedApp != null && !appsPanel.selectedApp.itemIsUpdated)
       horizontalAlignment: Text.AlignHCenter
-      color: "#FFFFFF"
       font.pixelSize: 14.0
-      text: "<b>Status:</b> "
-      // TODO
-      // Status would be "Installed", "Not Installed", "Needs Update"
-      // if not updating automatically, etc.
-      //+ ((tokensPanel.selectedToken != null) ? tokensPanel.selectedToken.itemAVAXPairContract : "")
-    }
-    AVMEButton {
-      id: btnInstall
-      width: (appDetailsPanel.width * 0.8)
-      anchors.horizontalCenter: parent.horizontalCenter
-      text: "Install Application"
-      onClicked: {} // TODO
+      color: "yellow"
+      text: "Needs Update -> " + ((appsPanel.selectedApp != null)
+      ? appsPanel.selectedApp.itemNextMajor + "."
+      + appsPanel.selectedApp.itemNextMinor + "."
+      + appsPanel.selectedApp.itemNextPatch
+      : "")
     }
     AVMEButton {
       id: btnOpen
       width: (appDetailsPanel.width * 0.8)
       anchors.horizontalCenter: parent.horizontalCenter
-      text: "Open Application"
-      onClicked: {} // TODO
+      visible: (appsPanel.selectedApp != null && appsPanel.selectedApp.itemIsUpdated)
+      text: "Open DApp"
+      onClicked: {
+        qmlSystem.setScreen(content, "qml/screens/AppScreen.qml")
+        qmlSystem.appLoaded(qmlSystem.getAppFolderPath(
+          appsPanel.selectedApp.itemChainId, appsPanel.selectedApp.itemFolder
+        ))
+      }
     }
     AVMEButton {
       id: btnUpdate
       width: (appDetailsPanel.width * 0.8)
       anchors.horizontalCenter: parent.horizontalCenter
-      text: "Update Application"
-      onClicked: {} // TODO
+      visible: (appsPanel.selectedApp != null && !appsPanel.selectedApp.itemIsUpdated)
+      text: "Update DApp"
+      onClicked: {
+        var app = ({})
+        app["chainId"] = appsPanel.selectedApp.itemChainId
+        app["folder"] = appsPanel.selectedApp.itemFolder
+        app["name"] = appsPanel.selectedApp.itemName
+        app["major"] = appsPanel.selectedApp.itemMajor
+        app["minor"] = appsPanel.selectedApp.itemMinor
+        app["patch"] = appsPanel.selectedApp.itemPatch
+        qmlSystem.uninstallApp(app)
+        app["major"] = appsPanel.selectedApp.itemNextMajor
+        app["minor"] = appsPanel.selectedApp.itemNextMinor
+        app["patch"] = appsPanel.selectedApp.itemNextPatch
+        infoPopup.info = "Downloading DApp,<br>please wait..."
+        infoPopup.open()
+        qmlSystem.installApp(app)
+      }
     }
     AVMEButton {
       id: btnUninstall
       width: (appDetailsPanel.width * 0.8)
       anchors.horizontalCenter: parent.horizontalCenter
-      text: "Uninstall Application"
+      text: "Uninstall DApp"
       onClicked: confirmUninstallAppPopup.open()
     }
   }

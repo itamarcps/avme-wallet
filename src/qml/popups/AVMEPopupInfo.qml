@@ -21,6 +21,16 @@ AVMEPopup {
   property alias okBtn: btnOk
   property color popupBgColor: "#1C2029"
 
+  // Enter/Numpad enter key override
+  Item {
+    focus: true
+    Keys.onPressed: {
+      if ((event.key == Qt.Key_Return) || (event.key == Qt.Key_Enter)) {
+        infoPopup.close()
+      }
+    }
+  }
+
   Row {
     id: infoContent
     anchors {
@@ -30,12 +40,13 @@ AVMEPopup {
     }
     spacing: 10
 
-    Image {
+    AVMEAsyncImage {
       id: png
+      width: 50
       height: 50
+      loading: false
       anchors.verticalCenter: parent.verticalCenter
-      fillMode: Image.PreserveAspectFit
-      source: icon
+      imageSource: icon
     }
 
     Text {

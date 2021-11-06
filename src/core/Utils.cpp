@@ -186,8 +186,7 @@ std::string Utils::uintToHex(std::string input, bool isPadded) {
     }
   }
 
-  if (!isPadded)
-    return valueHex;
+  if (!isPadded) { return valueHex; }
 
   // Insert value into padding from right to left
   for (size_t i = (valueHex.size() - 1), x = (padding.size() - 1),
@@ -233,7 +232,7 @@ std::string Utils::addressFromHex(std::string hex) {
   return ret;
 }
 
-std::string Utils::stringFromHex(std::string hex) {
+std::string Utils::bytesFromHex(std::string hex) {
   std::string ret, offset, len, hexStr;
   if (hex.substr(0, 2) == "0x") { hex = hex.substr(2); } // Remove the "0x"
 
@@ -320,15 +319,6 @@ boost::filesystem::path Utils::getDefaultDataDir() {
   #endif
 }
 
-boost::filesystem::path Utils::getDataDir() {
-  boost::filesystem::path dataPath = getDefaultDataDir();
-  try {
-    if (!boost::filesystem::exists(dataPath))
-      boost::filesystem::create_directory(dataPath);
-    } catch (...) {}
-  return dataPath;
-}
-
 std::string Utils::readJSONFile(boost::filesystem::path filePath) {
   json returnData;
   storageThreadLock.lock();
@@ -340,7 +330,7 @@ std::string Utils::readJSONFile(boost::filesystem::path filePath) {
     return errorData.dump();
   }
   try {
-    std::ifstream jsonFile(filePath.c_str());
+    boost::nowide::ifstream jsonFile(filePath.string());
     jsonFile >> returnData;
   } catch (std::exception &e) {
     json errorData;
@@ -358,7 +348,7 @@ std::string Utils::writeJSONFile(json obj, boost::filesystem::path filePath) {
   storageThreadLock.lock();
 
   try {
-    std::ofstream os(filePath.c_str());
+    boost::nowide::ofstream os(filePath.string());
     os << std::setw(2) << obj << std::endl;
     os.close();
   } catch (std::exception &e) {

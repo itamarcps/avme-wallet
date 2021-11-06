@@ -11,6 +11,9 @@
 #include <boost/chrono.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/nowide/filesystem.hpp>
+#include <boost/nowide/fstream.hpp>
+#include <boost/algorithm/string.hpp>
 #include <qrencode.h>
 
 #ifdef __MINGW32__
@@ -64,7 +67,6 @@ typedef struct ARC20Token {
 
 // Struct for a single Transaction.
 typedef struct TxData {
-  std::string txlink;
   std::string operation;
   std::string hex;
   std::string type;
@@ -142,8 +144,8 @@ namespace Utils {
    * uintToHex should work with uint<M>, bytes and bool.
    * addressToHex is solely for address.
    * Returns the hex string.
-   * bytesToHex converts a string of characters to a byte array
-   * returns the respective byte array with left-padding
+   * bytesToHex converts a string of characters to a byte array, and
+   * returns the respective byte array with left-padding.
    */
   std::string uintToHex(std::string input, bool isPadded = true);
   std::string addressToHex(std::string input);
@@ -155,7 +157,7 @@ namespace Utils {
    */
   std::string uintFromHex(std::string hex);
   std::string addressFromHex(std::string hex);
-  std::string stringFromHex(std::string hex);
+  std::string bytesFromHex(std::string hex);
 
   /**
    * Rounds a number to the nearest multiple.
@@ -172,7 +174,6 @@ namespace Utils {
   boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
   #endif
   boost::filesystem::path getDefaultDataDir();
-  boost::filesystem::path getDataDir();
 
   /**
    * Read from/write to a JSON file, respectively.
@@ -185,9 +186,9 @@ namespace Utils {
   std::string writeJSONFile(json obj, boost::filesystem::path filePath);
 
   /**
-   * Properly convert any json type when using json::get() to std::string
+   * Properly convert any json type when using json::get() to std::string.
    * *not* to be confused with json::dump()
-   */ 
+   */
   std::string jsonToStr(json& obj);
 };
 

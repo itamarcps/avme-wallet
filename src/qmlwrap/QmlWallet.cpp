@@ -70,10 +70,11 @@ bool QmlSystem::seedIsValid(QString seed) {
     if (!BIP39::wordExists(word)) { return false; }
     ct++;
   }
-  if (ct != 12) { return false; }
+  if (ct != 12 && ct != 24) { return false; }
   return true;
 }
 
-void QmlSystem::setDefaultPathFolders() {
-  this->w.setDefaultPathFolders();
+bool QmlSystem::checkForApp(QString folder) {
+  QString appFile = QString(folder + "/main.qml");
+  return QFile::exists(appFile);
 }

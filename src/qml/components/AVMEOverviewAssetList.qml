@@ -5,8 +5,6 @@ import QtQuick 2.9
 import QtQuick.Controls 2.2
 import QtCharts 2.9
 
-import "qrc:/qml/popups"
-
 /**
  * Custom list for a wallet's assets and amounts.
  * Requires a ListModel with the following items:
@@ -27,7 +25,6 @@ ListView {
     function onUpdatedBalances() { reloadAssets(); loadingPng.visible = false }
   }
 
-  // TODO: Using this if condition is a workaround, find a better solution
   Component.onCompleted: if (accountHeader.coinRawBalance) { reloadAssets(); loadingPng.visible = false }
 
   function reloadAssets() {
@@ -53,7 +50,8 @@ ListView {
       var asset = ({})
       asset["assetAddress"] = token
       asset["assetName"] = tokens[token]["symbol"]
-      asset["coinAmount"] = tokens[token]["coinWorth"]
+      asset["coinAmount"] = (+tokens[token]["rawBalance"] * +tokens[token]["derivedValue"])
+      asset["coinAmount"] = asset["coinAmount"].toFixed(18)
       asset["tokenAmount"] = tokens[token]["rawBalance"]
       asset["isToken"] = true
       asset["fiatAmount"] = "$" + tokens[token]["fiatValue"]
@@ -111,7 +109,7 @@ ListView {
       readonly property var itemPriceChart: priceChart
       readonly property string itemUSDPrice: USDPrice
       width: assetList.width
-      height: assetList.height * 0.3
+      height: assetList.height * 0.275
       visible: false
 
       Rectangle {
@@ -126,34 +124,35 @@ ListView {
           width: parent.width
           height: parent.height
           anchors.margins: 10
-          spacing: 10
+          spacing: 5
 
-          Image {
+          AVMEAsyncImage {
             id: listAssetImage
+            width: 48
             height: 48
-            antialiasing: true
-            asynchronous: true
-            smooth: true
-            cache: true
-            fillMode: Image.PreserveAspectFit
-            source: imagePath
+            loading: false
+            imageSource: imagePath
+            Text {
+              id: listAssetName
+              anchors {
+                left: parent.right
+                leftMargin: 10
+                verticalCenter: parent.verticalCenter
+              }
+              font.pixelSize: 24.0
+              font.bold: true
+              color: "white"
+              text: itemAssetName
+            }
           }
           Text {
             id: listAssetAmount
             color: "white"
-            width: parent.width * 0.33
+            width: parent.width * 0.5
             font.pixelSize: 18.0
             font.bold: true
             elide: Text.ElideRight
             text: (isToken) ? itemTokenAmount : itemCoinAmount
-            Text {
-              id: listAssetName
-              font.pixelSize: 18.0
-              font.bold: true
-              color: "white"
-              anchors.left: parent.right
-              text: " " + itemAssetName
-            }
           }
           Text {
             id: listAssetFiatAmount
@@ -171,11 +170,13 @@ ListView {
 
         ChartView {
           id: assetMarketChart
-          anchors.right: parent.right
-          anchors.rightMargin: parent.width * 0.05
-          anchors.verticalCenter: parent.verticalCenter
-          height: parent.height * 0.8
           width: parent.width * 0.4
+          height: parent.height * 0.8
+          anchors {
+            right: parent.right
+            rightMargin: 10
+            verticalCenter: parent.verticalCenter
+          }
           visible: true
           antialiasing: true
           backgroundColor: "white"
@@ -259,14 +260,6 @@ ListView {
         }
       }
     }
-  }
-  AVMEPopupPriceChart {
-    id: pricechartPopup
-    contractAddress: ""
-    nameAsset: ""
-    currentAssetPrice: ""
-    x: -(window.width / 2)
-    y: -(window.height / 16)
   }
 }
 

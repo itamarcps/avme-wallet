@@ -41,8 +41,9 @@ bool Database::isTokenDBOpen() {
 bool Database::tokenDBKeyExists(std::string key) {
   leveldb::Iterator* it = this->tokenDB->NewIterator(leveldb::ReadOptions());
   for (it->SeekToFirst(); it->Valid(); it->Next()) {
-    if (it->key().ToString() == key) return true;
+    if (it->key().ToString() == key) { delete it; return true; }
   }
+  delete it;
   return false;
 }
 
@@ -69,6 +70,14 @@ std::vector<std::string> Database::getAllTokenDBValues() {
   }
   delete it;
   return ret;
+}
+
+void Database::deleteAllTokenDBKeys() {
+  leveldb::Iterator* it = this->tokenDB->NewIterator(leveldb::ReadOptions());
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    this->tokenDB->Delete(leveldb::WriteOptions(), it->key().ToString());
+  }
+  delete it;
 }
 
 // ======================================================================
@@ -102,8 +111,9 @@ bool Database::isHistoryDBOpen() {
 bool Database::historyDBKeyExists(std::string key) {
   leveldb::Iterator* it = this->historyDB->NewIterator(leveldb::ReadOptions());
   for (it->SeekToFirst(); it->Valid(); it->Next()) {
-    if (it->key().ToString() == key) return true;
+    if (it->key().ToString() == key) { delete it; return true; }
   }
+  delete it;
   return false;
 }
 
@@ -130,6 +140,14 @@ std::vector<std::string> Database::getAllHistoryDBValues() {
   }
   delete it;
   return ret;
+}
+
+void Database::deleteAllHistoryDBKeys() {
+  leveldb::Iterator* it = this->historyDB->NewIterator(leveldb::ReadOptions());
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    this->historyDB->Delete(leveldb::WriteOptions(), it->key().ToString());
+  }
+  delete it;
 }
 
 // ======================================================================
@@ -159,8 +177,9 @@ bool Database::isLedgerDBOpen() {
 bool Database::ledgerDBKeyExists(std::string key) {
   leveldb::Iterator* it = this->ledgerDB->NewIterator(leveldb::ReadOptions());
   for (it->SeekToFirst(); it->Valid(); it->Next()) {
-    if (it->key().ToString() == key) return true;
+    if (it->key().ToString() == key) { delete it; return true; }
   }
+  delete it;
   return false;
 }
 
@@ -189,12 +208,20 @@ std::vector<std::string> Database::getAllLedgerDBValues() {
   return ret;
 }
 
+void Database::deleteAllLedgerDBKeys() {
+  leveldb::Iterator* it = this->ledgerDB->NewIterator(leveldb::ReadOptions());
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    this->ledgerDB->Delete(leveldb::WriteOptions(), it->key().ToString());
+  }
+  delete it;
+}
+
 // ======================================================================
 // DAPP DATABASE FUNCTIONS
 // ======================================================================
 
 bool Database::openAppDB() {
-  std::string path = Utils::walletFolderPath.string() + "/wallet/c-avax/apps";
+  std::string path = Utils::walletFolderPath.string() + "/wallet/c-avax/appdb";
   if (!exists(path)) { create_directories(path); }
   this->appStatus = leveldb::DB::Open(this->appOpts, path, &this->appDB);
   return this->appStatus.ok();
@@ -216,8 +243,9 @@ bool Database::isAppDBOpen() {
 bool Database::appDBKeyExists(std::string key) {
   leveldb::Iterator* it = this->appDB->NewIterator(leveldb::ReadOptions());
   for (it->SeekToFirst(); it->Valid(); it->Next()) {
-    if (it->key().ToString() == key) return true;
+    if (it->key().ToString() == key) { delete it; return true; }
   }
+  delete it;
   return false;
 }
 
@@ -245,3 +273,144 @@ std::vector<std::string> Database::getAllAppDBValues() {
   delete it;
   return ret;
 }
+
+void Database::deleteAllAppDBKeys() {
+  leveldb::Iterator* it = this->appDB->NewIterator(leveldb::ReadOptions());
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    this->appDB->Delete(leveldb::WriteOptions(), it->key().ToString());
+  }
+  delete it;
+}
+
+// ======================================================================
+// CONTACTS DATABASE FUNCTIONS
+// ======================================================================
+
+bool Database::openAddressDB() {
+  std::string path = Utils::walletFolderPath.string() + "/wallet/c-avax/contacts";
+  if (!exists(path)) { create_directories(path); }
+  this->addressStatus = leveldb::DB::Open(this->addressOpts, path, &this->addressDB);
+  return this->addressStatus.ok();
+}
+
+std::string Database::getAddressDBStatus() {
+  return this->addressStatus.ToString();
+}
+
+void Database::closeAddressDB() {
+  delete this->addressDB;
+  this->addressDB = NULL;
+}
+
+bool Database::isAddressDBOpen() {
+  return (this->addressDB != NULL);
+}
+
+bool Database::addressDBKeyExists(std::string key) {
+  leveldb::Iterator* it = this->addressDB->NewIterator(leveldb::ReadOptions());
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    if (it->key().ToString() == key) { delete it; return true; }
+  }
+  delete it;
+  return false;
+}
+
+std::string Database::getAddressDBValue(std::string key) {
+  this->addressStatus = this->addressDB->Get(leveldb::ReadOptions(), key, &this->addressValue);
+  return (this->addressStatus.ok()) ? this->addressValue : this->addressStatus.ToString();
+}
+
+bool Database::putAddressDBValue(std::string key, std::string value) {
+  this->addressStatus = this->addressDB->Put(leveldb::WriteOptions(), key, value);
+  return this->addressStatus.ok();
+}
+
+bool Database::deleteAddressDBValue(std::string key) {
+  this->addressStatus = this->addressDB->Delete(leveldb::WriteOptions(), key);
+  return this->addressStatus.ok();
+}
+
+std::vector<std::string> Database::getAllAddressDBValues() {
+  std::vector<std::string> ret;
+  leveldb::Iterator* it = this->addressDB->NewIterator(leveldb::ReadOptions());
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    ret.push_back(it->value().ToString());
+  }
+  delete it;
+  return ret;
+}
+
+void Database::deleteAllAddressDBKeys() {
+  leveldb::Iterator* it = this->addressDB->NewIterator(leveldb::ReadOptions());
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    this->addressDB->Delete(leveldb::WriteOptions(), it->key().ToString());
+  }
+  delete it;
+}
+
+// ======================================================================
+// SETTINGS DATABASE FUNCTIONS
+// ======================================================================
+
+bool Database::openConfigDB() {
+  std::string path = Utils::walletFolderPath.string() + "/config";
+  if (!exists(path)) { create_directories(path); }
+  this->configStatus = leveldb::DB::Open(this->configOpts, path, &this->configDB);
+  return this->configStatus.ok();
+}
+
+std::string Database::getConfigDBStatus() {
+  return this->configStatus.ToString();
+}
+
+void Database::closeConfigDB() {
+  delete this->configDB;
+  this->configDB = NULL;
+}
+
+bool Database::isConfigDBOpen() {
+  return (this->configDB != NULL);
+}
+
+bool Database::configDBKeyExists(std::string key) {
+  leveldb::Iterator* it = this->configDB->NewIterator(leveldb::ReadOptions());
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    if (it->key().ToString() == key) { delete it; return true; }
+  }
+  delete it;
+  return false;
+}
+
+std::string Database::getConfigDBValue(std::string key) {
+  this->configStatus = this->configDB->Get(leveldb::ReadOptions(), key, &this->configValue);
+  return (this->configStatus.ok()) ? this->configValue : this->configStatus.ToString();
+}
+
+bool Database::putConfigDBValue(std::string key, std::string value) {
+  this->configStatus = this->configDB->Put(leveldb::WriteOptions(), key, value);
+  return this->configStatus.ok();
+}
+
+bool Database::deleteConfigDBValue(std::string key) {
+  this->configStatus = this->configDB->Delete(leveldb::WriteOptions(), key);
+  return this->configStatus.ok();
+}
+
+std::vector<std::string> Database::getAllConfigDBValues() {
+  std::vector<std::string> ret;
+  leveldb::Iterator* it = this->configDB->NewIterator(leveldb::ReadOptions());
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    ret.push_back(it->value().ToString());
+  }
+  delete it;
+  return ret;
+}
+
+void Database::deleteAllConfigDBKeys() {
+  leveldb::Iterator* it = this->configDB->NewIterator(leveldb::ReadOptions());
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    this->configDB->Delete(leveldb::WriteOptions(), it->key().ToString());
+  }
+  delete it;
+}
+

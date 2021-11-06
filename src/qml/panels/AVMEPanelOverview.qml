@@ -8,10 +8,28 @@ import QtCharts 2.2
 import "qrc:/qml/components"
 
 // Panel for the Account's balance overview chart.
-
 AVMEPanel {
   id: overviewPanel
   title: "Your Account"
+  property var chartColors: [
+    // https://sashamaps.net/docs/resources/20-colors
+    "#E6194B", // Red
+    "#3CB44B", // Green
+    "#FFE119", // Yellow
+    "#4363D8", // Blue
+    "#F58231", // Orange
+    "#42D4F4", // Cyan
+    "#F032E6", // Magenta
+    "#FABED4", // Pink
+    "#469990", // Teal
+    "#DCBEEF", // Lavender
+    "#9A6324", // Brown
+    "#FFFAC8", // Beige
+    "#800000", // Maroon
+    "#AAFFC3", // Mint
+    "#0000FF", // Dark Blue because Navy is too dark
+    "#A9A9A9", // Grey
+  ]
 
   Connections {
     target: accountHeader
@@ -19,12 +37,11 @@ AVMEPanel {
   }
 
   // Only load chart if everything is loaded
-  // TODO: Using this if condition is a workaround, find a better solution
   Component.onCompleted: if (accountHeader.coinRawBalance) { accountPie.refresh(); loadingPng.visible = false }
 
   Rectangle {
     id: accountChartRect
-    height: (parent.height * 0.5) - anchors.topMargin
+    height: (parent.height * 0.6) - anchors.topMargin
     anchors {
       top: parent.top
       left: parent.left
@@ -50,14 +67,16 @@ AVMEPanel {
           append("AVAX", accountHeader.coinFiatValue)
           for (var token in accountHeader.tokenList) {
             var sym = accountHeader.tokenList[token].symbol
-            var bal = accountHeader.tokenList[token].fiatValue
+            var bal = +accountHeader.tokenList[token].fiatValue
+            bal = bal.toFixed(2)
             append(sym, bal)
           }
-          var baseColor = "#AD00FA"
+          var colorCt = 0
           for (var i = 0; i < count; i++) {
-            at(i).color = baseColor
+            at(i).color = chartColors[colorCt]
+            colorCt++
+            if (colorCt >= chartColors.length) { colorCt = 0 }
             at(i).borderColor = overviewPanel.color.toString()
-            baseColor = Qt.darker(baseColor, 1.2)
           }
           accountChartLegendModel.refresh()
         }
@@ -66,7 +85,7 @@ AVMEPanel {
         id: accountPiePercentageText
         anchors {
           top: parent.top
-          topMargin: parent.height * 0.35
+          topMargin: parent.height * 0.5
           horizontalCenter: parent.horizontalCenter
         }
         font.pixelSize: 18.0
@@ -77,7 +96,7 @@ AVMEPanel {
         id: accountPieValueText
         anchors {
           bottom: parent.bottom
-          bottomMargin: parent.height * 0.35
+          bottomMargin: parent.height * 0.5
           horizontalCenter: parent.horizontalCenter
         }
         font.pixelSize: 18.0
@@ -97,7 +116,7 @@ AVMEPanel {
       margins: 20
     }
     clip: true
-    cellWidth: width / 4
+    cellWidth: width * 0.2
     cellHeight: 40
     delegate: Component {
       id: accountChartLegendDelegate
@@ -161,14 +180,12 @@ AVMEPanel {
       }
     }
   }
-  Image {
+  AVMEAsyncImage {
     id: loadingPng
-    height: parent.width / 3
     width: height
-    anchors.verticalCenter: parent.verticalCenter
-    anchors.horizontalCenter: parent.horizontalCenter
-    fillMode: Image.PreserveAspectFit
-    source: "qrc:/img/icons/loading.png"
+    height: (parent.width / 3)
+    anchors.centerIn: parent
+    imageSource: "qrc:/img/icons/loading.png"
     RotationAnimator {
       target: loadingPng
       from: 0

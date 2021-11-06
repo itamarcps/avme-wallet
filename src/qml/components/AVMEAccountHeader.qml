@@ -19,16 +19,18 @@ Rectangle {
   property string coinUSDPrice
   property string coinUSDPriceChart
   property string totalFiatBalance
+  property string accountNonce
   property string gasPrice
+  property string website
   property bool isLedger: qmlSystem.getLedgerFlag()
   property var tokenList: ({})
+  width: 750
+  height: 48
+  color: "#1C2029"
+  radius: 5
 
-  height: 50
-  radius: 10
-  color: "transparent"
   signal updatedBalances()
 
-  Timer { id: addressTimer; interval: 1000 }
   Timer { id: balancesTimer; interval: 1000; repeat: true; onTriggered: refreshBalances() }
   // TODO: Remove all "useless" ledger calls
   Timer { id: ledgerRetryTimer; interval: 250; onTriggered: checkLedger() }
@@ -49,21 +51,51 @@ Rectangle {
         for (var i = 0; i < tokenJsonList.length; ++i) {
           var tokenInformation = ({})
           tokenInformation["rawBalance"] = tokenJsonList[i]["tokenRawBalance"]
-          tokenInformation["fiatValue"] = tokenJsonList[i]["tokenFiatValue"]
+          tokenInformation["fiatValue"] = +tokenJsonList[i]["tokenFiatValue"]
+          tokenInformation["fiatValue"] = tokenInformation["fiatValue"].toFixed(2)
           tokenInformation["derivedValue"] = tokenJsonList[i]["tokenDerivedValue"]
           tokenInformation["symbol"] = tokenJsonList[i]["tokenSymbol"]
-          tokenInformation["coinWorth"] = tokenJsonList[i]["coinWorth"]
           tokenInformation["chartData"] = tokenJsonList[i]["tokenChartData"]
           tokenInformation["USDprice"] = tokenJsonList[i]["tokenUSDPrice"]
           tokenInformation["decimals"] = tokenJsonList[i]["tokenDecimals"]
           tokenInformation["name"] = tokenJsonList[i]["tokenName"]
           tokenList[tokenJsonList[i]["tokenAddress"]] = tokenInformation
-          // Use only two digits precision.
-          totalFiatBalance = Math.round((+totalFiatBalance + +tokenInformation["fiatValue"]) * 100) / 100
+          totalFiatBalance = (Math.round(
+            (+totalFiatBalance + +tokenInformation["fiatValue"]) * 100
+          ) / 100).toFixed(2) // Use only two digits precision for fiat
         }
         gasPrice = String(Math.round(+gasPriceStr))
         updatedBalances()
       }
+    }
+    function onAskForPermission(website_) {
+      website = website_
+      confirmWebsiteAllowance.open()
+      window.requestActivate()
+    }
+    function onAskForTransaction(data,from,gas,to,value,website_) {
+      confirmRT.setData(
+        to,
+        qmlApi.weiToFixedPoint(qmlApi.parseHex(value,["uint"]),18),
+        data,
+        qmlApi.parseHex(gas,["uint"]),
+        +gasPrice + 20,
+        true,
+        "The following website is requesting a transaction: <b> " + website_ + "</b>" +
+        "<br>Total Value: <b>" + qmlApi.weiToFixedPoint(qmlApi.parseHex(value,["uint"]),18) + "</b>",
+        "Tx from: <b> " + website_ + "</b>"
+        )
+      confirmRT.open()
+      window.requestActivate()
+    }
+    function onAccountNonceUpdate(nonce) { accountNonce = nonce }
+  }
+
+  function qrEncode() {
+    qrcodePopup.qrModel.clear()
+    var qrData = qmlSystem.getQRCodeFromAddress(currentAddress)
+    for (var i = 0; i < qrData.length; i++) {
+      qrcodePopup.qrModel.set(i, JSON.parse(qrData[i]))
     }
   }
 
@@ -88,48 +120,101 @@ Rectangle {
     }
   }
 
-  function qrEncode() {
-    qrcodePopup.qrModel.clear()
-    var qrData = qmlSystem.getQRCodeFromAddress(currentAddress)
-    for (var i = 0; i < qrData.length; i++) {
-      qrcodePopup.qrModel.set(i, JSON.parse(qrData[i]))
+  Rectangle {
+    id: copyClipRect
+    property alias timer: addressTimer
+    enabled: (!addressTimer.running)
+    visible: (currentAddress != "")
+    color: "transparent"
+    radius: 5
+    width: 32
+    height: 32
+    anchors {
+      left: parent.left
+      leftMargin: 10
+      verticalCenter: parent.verticalCenter
+    }
+    Timer { id: addressTimer; interval: 1000 }
+    ToolTip {
+      id: copyClipTooltip
+      parent: copyClipRect
+      visible: (copyClipMouseArea.hovering || copyClipRect.timer.running)
+      contentItem: Text {
+        font.pixelSize: 12.0
+        color: "#FFFFFF"
+        text: (copyClipRect.timer.running) ? "Copied!" : "Copy to Clipboard"
+      }
+      background: Rectangle { color: "#1C2029" }
+    }
+    AVMEAsyncImage {
+      id: copyClipImage
+      width: parent.width
+      height: parent.height
+      loading: false
+      anchors.centerIn: parent
+      imageSource: "qrc:/img/icons/clipboard.png"
+    }
+    MouseArea {
+      id: copyClipMouseArea
+      property bool hovering
+      anchors.fill: parent
+      hoverEnabled: true
+      onEntered: {
+        copyClipImage.imageSource = "qrc:/img/icons/clipboardSelect.png"
+        hovering = true
+      }
+      onExited: {
+        copyClipImage.imageSource = "qrc:/img/icons/clipboard.png"
+        hovering = false
+      }
+      onClicked: {
+        qmlSystem.copyToClipboard(currentAddress)
+        parent.timer.start()
+      }
     }
   }
 
   Rectangle {
     id: qrCodeRect
+    color: "transparent"
+    radius: 5
+    width: 32
+    height: 32
+    visible: (currentAddress != "")
     anchors {
-      top: parent.top
-      left: parent.left
+      left: copyClipRect.right
       leftMargin: 10
       verticalCenter: parent.verticalCenter
     }
-    color: "transparent"
-    radius: 5
-    height: addressText.height
-    width: height
-
-    Image {
+    ToolTip {
+      id: qrCodeTooltip
+      parent: qrCodeRect
+      contentItem: Text {
+        font.pixelSize: 12.0
+        color: "#FFFFFF"
+        text: "Show QR Code"
+      }
+      background: Rectangle { color: "#1C2029" }
+    }
+    AVMEAsyncImage {
       id: qrCodeImage
+      width: parent.width
+      height: parent.height
+      loading: false
       anchors.centerIn: parent
-      height: parent.height * 0.8
-      width: parent.width * 0.8
-      fillMode: Image.PreserveAspectFit
-      antialiasing: true
-      smooth: true
-      source: "qrc:/img/icons/qrcode.png"
+      imageSource: "qrc:/img/icons/qrcode.png"
     }
     MouseArea {
       id: qrCodeMouseArea
       anchors.fill: parent
       hoverEnabled: true
       onEntered: {
-        parent.color = "#3F434C"
-        qrCodeImage.source = "qrc:/img/icons/qrcodeSelect.png"
+        qrCodeImage.imageSource = "qrc:/img/icons/qrcodeSelect.png"
+        qrCodeTooltip.visible = true
       }
       onExited: {
-        parent.color = "transparent"
-        qrCodeImage.source = "qrc:/img/icons/qrcode.png"
+        qrCodeImage.imageSource = "qrc:/img/icons/qrcode.png"
+        qrCodeTooltip.visible = false
       }
       onClicked: {
         qrEncode()
@@ -138,119 +223,151 @@ Rectangle {
     }
   }
 
+  Text {
+    id: account
+    anchors.centerIn: parent
+    color: "#FFFFFF"
+    font.pixelSize: 18.0
+    font.bold: true
+    text: (currentAddress != "") ? currentAddress : "No account selected."
+  }
+
   Rectangle {
-    id: copyClipRect
-    anchors {
-      top: parent.top
-      left: qrCodeRect.right
-      leftMargin: 10
-      verticalCenter: parent.verticalCenter
-    }
-    enabled: (!addressTimer.running)
+    id: websiteRect
     color: "transparent"
     radius: 5
-    height: addressText.height
-    width: height
-
-    Image {
-      id: copyClipImage
+    width: 32
+    height: 32
+    visible: (currentAddress != "")
+    anchors {
+      right: privKeyRect.left
+      rightMargin: 10
+      verticalCenter: parent.verticalCenter
+    }
+    ToolTip {
+      id: websiteTooltip
+      parent: websiteRect
+      contentItem: Text {
+        font.pixelSize: 12.0
+        color: "#FFFFFF"
+        text: "Show Website Permissions"
+      }
+      background: Rectangle { color: "#1C2029" }
+    }
+    AVMEAsyncImage {
+      id: websiteImage
+      width: parent.width
+      height: parent.height
+      loading: false
       anchors.centerIn: parent
-      height: parent.height * 0.8
-      width: parent.width * 0.8
-      fillMode: Image.PreserveAspectFit
-      antialiasing: true
-      smooth: true
-      source: "qrc:/img/icons/Icon_Clipboard.png"
+      imageSource: "qrc:/img/icons/world.png"
     }
     MouseArea {
-      id: copyClipMouseArea
+      id: websiteMouseArea
       anchors.fill: parent
       hoverEnabled: true
       onEntered: {
-        parent.color = "#3F434C"
-        copyClipImage.source = "qrc:/img/icons/Icon_Clipboard_On.png"
+        websiteImage.imageSource = "qrc:/img/icons/worldSelect.png"
+        websiteTooltip.visible = true
       }
       onExited: {
-        parent.color = "transparent"
-        copyClipImage.source = "qrc:/img/icons/Icon_Clipboard.png"
+        websiteImage.imageSource = "qrc:/img/icons/world.png"
+        websiteTooltip.visible = false
       }
-      onClicked: {
-        qmlSystem.copyToClipboard(currentAddress)
-        addressTimer.start()
-      }
+      onClicked: viewWebsitePermissionPopup.open()
     }
   }
 
-  Text {
-    id: addressText
+  Rectangle {
+    id: privKeyRect
+    color: "transparent"
+    radius: 5
+    width: 32
+    height: 32
+    visible: (currentAddress != "")
     anchors {
-      verticalCenter: parent.verticalCenter
-      left: copyClipRect.right
-      leftMargin: 10
-    }
-    color: "#FFFFFF"
-    text: (!addressTimer.running) ? currentAddress : "Copied to clipboard!"
-    font.bold: true
-    font.pixelSize: 17.0
-
-    Rectangle {
-      id: addressRect
-      anchors.fill: parent
-      anchors.margins: -10
-      color: "transparent"
-      z: parent.z - 1
-      radius: 5
-      MouseArea {
-        id: addressMouseArea
-        anchors.fill: parent
-        hoverEnabled: true
-        enabled: (!addressTimer.running)
-        onEntered: parent.color = "#3F434C"
-        onExited: parent.color = "transparent"
-        onClicked: {
-          parent.color = "transparent"
-          qmlSystem.copyToClipboard(currentAddress)
-          addressTimer.start()
-        }
-      }
-    }
-  }
-
-  AVMEButton {
-    id: btnChangeAccount
-    width: parent.width * 0.15
-    anchors {
-      verticalCenter: parent.verticalCenter
-      right: btnChangeWallet.left
+      right: seedRect.left
       rightMargin: 10
+      verticalCenter: parent.verticalCenter
     }
-    text: "Change Account"
-    onClicked: {
-      qmlSystem.hideMenu()
-      qmlSystem.setScreen(content, "qml/screens/AccountsScreen.qml")
+    ToolTip {
+      id: privKeyTooltip
+      parent: privKeyRect
+      contentItem: Text {
+        font.pixelSize: 12.0
+        color: "#FFFFFF"
+        text: "Show Private Key"
+      }
+      background: Rectangle { color: "#1C2029" }
+    }
+    AVMEAsyncImage {
+      id: privKeyImage
+      width: parent.width
+      height: parent.height
+      loading: false
+      anchors.centerIn: parent
+      imageSource: "qrc:/img/icons/key-f.png"
+    }
+    MouseArea {
+      id: privKeyMouseArea
+      anchors.fill: parent
+      hoverEnabled: true
+      onEntered: {
+        privKeyImage.imageSource = "qrc:/img/icons/key-fSelect.png"
+        privKeyTooltip.visible = true
+      }
+      onExited: {
+        privKeyImage.imageSource = "qrc:/img/icons/key-f.png"
+        privKeyTooltip.visible = false
+      }
+      onClicked: viewPrivKeyPopup.open()
     }
   }
 
-  AVMEButton {
-    id: btnChangeWallet
-    width: parent.width * 0.15
+  Rectangle {
+    id: seedRect
+    color: "transparent"
+    radius: 5
+    width: 32
+    height: 32
+    visible: (currentAddress != "")
     anchors {
-      verticalCenter: parent.verticalCenter
       right: parent.right
       rightMargin: 10
+      verticalCenter: parent.verticalCenter
     }
-    text: "Change Wallet"
-    onClicked: {
-      qmlSystem.setLedgerFlag(false)
-      qmlSystem.hideMenu()
-      qmlSystem.cleanAndClose()
-      qmlSystem.setScreen(content, "qml/screens/StartScreen.qml")
+    ToolTip {
+      id: seedTooltip
+      parent: seedRect
+      contentItem: Text {
+        font.pixelSize: 12.0
+        color: "#FFFFFF"
+        text: "Show Wallet Seed"
+      }
+      background: Rectangle { color: "#1C2029" }
     }
-  }
-
-  // Popup for Ledger accounts
-  AVMEPopupLedger {
-    id: ledgerPopup
+    AVMEAsyncImage {
+      id: seedImage
+      width: parent.width
+      height: parent.height
+      loading: false
+      anchors.centerIn: parent
+      imageSource: "qrc:/img/icons/seed.png"
+    }
+    MouseArea {
+      id: seedMouseArea
+      anchors.fill: parent
+      hoverEnabled: true
+      onEntered: {
+        seedImage.imageSource = "qrc:/img/icons/seedSelect.png"
+        seedTooltip.visible = true
+      }
+      onExited: {
+        seedImage.imageSource = "qrc:/img/icons/seed.png"
+        seedTooltip.visible = false
+      }
+      onClicked: viewSeedPopup.open()
+    }
   }
 
   // Info popup for if communication with Ledger fails
@@ -261,10 +378,101 @@ Rectangle {
     okBtn.text: "Close"
   }
 
-  // "qrcodeWidth = 0" makes the program not even open, so leave it at 1
+  AVMEPopup {
+    id: confirmWebsiteAllowance
+    width: window.width * 0.66
+    height: window.height * 0.1
+    y: ((window.height / 2) - (height / 2))
+    z: 9999
+    Column {
+      id: confirmWebsiteAllowanceColumn
+      anchors.centerIn: parent
+      anchors.horizontalCenter: parent.horizontalCenter
+      width: parent.width
+      height: parent.height * 0.9
+      spacing: 30
+      Text {
+        anchors.horizontalCenter: parent.horizontalCenter
+        id: websiteText
+        color: "#FFFFFF"
+        font.pixelSize: 17.0
+        text: "Allow <b>" + website + "</b> to connect?"
+      }
+      Row {
+        anchors.horizontalCenter: parent.horizontalCenter
+        spacing: confirmWebsiteAllowanceColumn.width * 0.1
+        AVMEButton {
+          id: refuseWebsiteBtn
+          width: confirmWebsiteAllowanceColumn.width * 0.4
+          text: "No"
+          onClicked: {
+            qmlSystem.addToPermissionList(website, false)
+            confirmWebsiteAllowance.close()
+          }
+        }
+        AVMEButton {
+          id: approveWebsiteBtn
+          width: confirmWebsiteAllowanceColumn.width * 0.4
+          text: "Yes"
+          onClicked: {
+            qmlSystem.addToPermissionList(website, true)
+            confirmWebsiteAllowance.close()
+          }
+        }
+      }
+    }
+  }
+
+  // "qrcodeWidth = 0" doesn't let the program open, leave it at 1.
+  // width/height/y are overrides to properly size the popup.
   AVMEPopupQRCode {
     id: qrcodePopup
-    qrcodeWidth: (currentAddress != "") ? qmlSystem.getQRCodeSize(currentAddress) : 1
+    width: window.width * 0.3
+    height: window.height * 0.6
+    y: ((window.height / 2) - (height / 2))
+    qrcodeWidth: (currentAddress != "")
+    ? qmlSystem.getQRCodeSize(currentAddress) : 1
     textAddress.text: currentAddress
+  }
+
+
+  AVMEPopupViewPrivKey {
+    id: viewPrivKeyPopup
+    width: window.width * 0.7
+    height: window.height * 0.6
+    y: ((window.height / 2) - (height / 2))
+  }
+
+  AVMEPopupViewSeed {
+    id: viewSeedPopup
+    width: window.width * 0.75
+    height: window.height * 0.6
+    y: ((window.height / 2) - (height / 2))
+  }
+
+  AVMEPopupWebsitePermission {
+    id: viewWebsitePermissionPopup
+    width: window.width * 0.4
+    height: window.height * 0.9
+    y: ((window.height / 2) - (height / 2))
+  }
+
+  AVMEPopupConfirmTx {
+    id: confirmRT
+    width: window.width * 0.6
+    height: window.height * 0.7
+    y: ((window.height / 2) - (height / 2))
+    backBtn.onClicked: {
+      confirmRT.close()
+      qmlSystem.requestedTransactionStatus(false, "")
+    }
+  }
+
+  AVMEPopupTxProgress {
+    width: window.width * 0.7
+    height: window.height * 0.8
+    y: ((window.height / 2) - (height / 2))
+    id: txProgressPopup
+    requestedFromWS: true
   }
 }

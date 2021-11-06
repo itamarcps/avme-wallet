@@ -4,9 +4,7 @@
 import QtQuick 2.9
 import QtQuick.Controls 2.2
 
-/**
- * Custom grid view for managing tokens.
- */
+// GridView for available tokens.
 GridView {
   id: tokenGrid
   property color listHighlightColor: "#887AC1EB"
@@ -19,6 +17,8 @@ GridView {
   boundsBehavior: Flickable.StopAtBounds
   cellWidth: 120
   cellHeight: 120
+
+  Component.onCompleted: forceActiveFocus()
 
   delegate: Component {
     id: gridDelegate
@@ -35,22 +35,18 @@ GridView {
       Column {
         anchors.centerIn: parent
         spacing: 10
-        Image {
+        AVMEAsyncImage {
           id: tokenImage
           width: 64
           height: 64
           anchors.horizontalCenter: parent.horizontalCenter
-          antialiasing: true
-          smooth: true
-          asynchronous: true
-          fillMode: Image.PreserveAspectFit
-          source: {
+          imageSource: {
             var avmeAddress = qmlSystem.getContract("AVME")
             if (itemAddress == avmeAddress) {
-              source: "qrc:/img/avme_logo.png"
+              imageSource: "qrc:/img/avme_logo.png"
             } else {
               var img = qmlSystem.getARC20TokenImage(itemAddress)
-              source: (img != "") ? "file:" + img : "qrc:/img/unknown_token.png"
+              imageSource: (img != "") ? "file:" + img : "qrc:/img/unknown_token.png"
             }
           }
         }

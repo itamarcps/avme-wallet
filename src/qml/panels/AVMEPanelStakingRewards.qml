@@ -57,8 +57,8 @@ AVMEPanel {
   function exitTx() {
     to = qmlSystem.getContract("staking")
     coinValue = 0
-    gas = 200000
-    info = "You will Harvest <b> " + qmlApi.weiToFixedPoint(reward, 18) + " AVME <\b> "
+    gas = 400000
+    info = "You will harvest <b> " + qmlApi.weiToFixedPoint(reward, 18) + " AVME </b> "
     + "<br> and withdraw <b>" + qmlApi.weiToFixedPoint(lockedBalance, 18) + " AVME/AVAX LP "
     + "</b><br> on Classic Staking Contract"
     historyInfo = "Exit Classic Staking Contract"
@@ -74,8 +74,8 @@ AVMEPanel {
   function harvestTx() {
     to = qmlSystem.getContract("staking")
     coinValue = 0
-    gas = 200000
-    info = "You will Harvest <b> " + qmlApi.weiToFixedPoint(reward, 18) + " AVME <\b>"
+    gas = 250000
+    info = "You will harvest <b> " + qmlApi.weiToFixedPoint(reward, 18) + " AVME </b>"
     + "</b><br> on Classic Staking Contract"
     historyInfo = "Harves Classic Staking Contract"
     var ethCallJson = ({})
@@ -104,7 +104,7 @@ AVMEPanel {
       leftMargin: 40
       rightMargin: 40
     }
-    spacing: 30
+    spacing: 20
 
     Text {
       id: harvestTitle
@@ -114,14 +114,13 @@ AVMEPanel {
       text: "You will <b>harvest AVME</b> rewards"
     }
 
-    Image {
+    AVMEAsyncImage {
       id: harvestTokenLogo
+      width: 64
+      height: 64
       anchors.horizontalCenter: parent.horizontalCenter
-      height: 48
-      antialiasing: true
-      smooth: true
-      fillMode: Image.PreserveAspectFit
-      source: "qrc:/img/avme_logo.png"
+      loading: false
+      imageSource: "qrc:/img/avme_logo.png"
     }
 
     Text {
@@ -139,7 +138,7 @@ AVMEPanel {
       anchors.horizontalCenter: parent.horizontalCenter
       visible: (!loading)
       enabled: ((+reward != 0) && (+accountHeader.coinRawBalance >=
-        +qmlSystem.calculateTransactionCost("0", "70000", gasPrice)
+        +qmlSystem.calculateTransactionCost("0", "400000", gasPrice)
       ))
       onClicked: {
         exitTx()
@@ -164,7 +163,7 @@ AVMEPanel {
       anchors.horizontalCenter: parent.horizontalCenter
       visible: (!loading)
       enabled: ((+reward != 0) &&(+accountHeader.coinRawBalance >=
-        +qmlSystem.calculateTransactionCost("0", "70000", gasPrice)
+        +qmlSystem.calculateTransactionCost("0", "250000", gasPrice)
       ))
       onClicked: {
         harvestTx()
@@ -183,9 +182,8 @@ AVMEPanel {
       text: "Harvest AVME"
     }
   }
-  Image {
+  AVMEAsyncImage {
     id: stakingLoadingPng
-    visible: loading
     anchors {
       top: stakingRewardsDetailsColumn.bottom
       bottom: parent.bottom
@@ -194,8 +192,8 @@ AVMEPanel {
       topMargin: parent.height * 0.1
       bottomMargin: parent.height * 0.1
     }
-    fillMode: Image.PreserveAspectFit
-    source: "qrc:/img/icons/loading.png"
+    visible: loading
+    imageSource: "qrc:/img/icons/loading.png"
     RotationAnimator {
       target: stakingLoadingPng
       from: 0

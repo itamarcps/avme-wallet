@@ -10,16 +10,25 @@ Official wallet for the AVME Project.
 * **GCC** (native Linux) *or* **MinGW** (cross-compile from Linux to Windows) with support for **C++14** or higher
 * **Build deps for Qt 5.15.2** or higher (see the [Qt docs](https://wiki.qt.io/Building_Qt_5_from_Git) for more info)
 * Required packages for Bitcoin Core's depends system (see [depends/README.md](depends/README.md) for more info)
+* For compiling LevelDB: **libsnappy**
+* For compiling Qt: **libdouble-conversion-dev**, **libkrb5-dev** and **libvulkan**
 
-Example for APT-based distros:
-* `sudo apt-get build-dep qt5-default`
-* `sudo apt-get install bison build-essential mingw-w64 make automake autotools-dev cmake curl g++-multilib libdouble-conversion-dev libtool binutils-gold bsdmainutils pkg-config python3 patch libxcb-xinerama0-dev`
+Handy one-liner for **Debian 9 Stretch or newer**:
+* `sudo apt-get build-dep qtbase5-dev && sudo apt-get install build-essential make automake cmake curl g++-multilib mingw-w64 libtool binutils bsdmainutils pkg-config python3 patch bison gperf libdouble-conversion-dev libxcb-xinerama0-dev libkrb5-dev libsnappy-dev libvulkan-dev`
+
+### Known caveats
+
+* **Debian 11 Bullseye and older**: CMake is too old and has to be installed manually from [their website](https://cmake.org/download)
 
 ### Instructions
 
 * Clone the project: `git clone https://github.com/avme/avme-wallet`
 * Go to the project's root folder, create a "build" folder and change to it:
   * `cd avme-wallet && mkdir build && cd build`
+* **If cross-compiling with MinGW**, set both gcc and g++ to *POSIX* instead of *Win32*:
+  * `sudo update-alternatives --config x86_64-w64-mingw32-gcc`
+  * `sudo update-alternatives --config x86_64-w64-mingw32-g++`
+  * Choose the `-posix` option for both
 * Compile the depends system:
   * If using **GCC**: `make -C ../depends -j$(nproc)`
   * If using **MinGW**: `make HOST=x86_64-w64-mingw32 -C ../depends -j$(nproc)`

@@ -12,7 +12,6 @@ ListView {
   property color listHighlightColor: "#9400F6"
   property color listBgColor: "#16141F"
   property color listHoverColor: "#2E2C3D"
-  signal grabFocus()
 
   implicitWidth: 500
   implicitHeight: 500
@@ -48,23 +47,20 @@ ListView {
         radius: 5
         height: parent.height
         width: parent.width * 0.9
-        Image {
+        AVMEAsyncImage {
           id: delegateImage
           anchors.verticalCenter: parent.verticalCenter
           width: parent.height * 0.9
           height: width
-          antialiasing: true
-          smooth: true
-          fillMode: Image.PreserveAspectFit
-          source: {
+          imageSource: {
             var avmeAddress = qmlSystem.getContract("AVME")
             if (itemAddress == avmeAddress) {
-              source: "qrc:/img/avme_logo.png"
+              imageSource: "qrc:/img/avme_logo.png"
             } else if (itemIcon && itemIcon != "") {
-              source: itemIcon
+              imageSource: itemIcon
             } else {
               var img = qmlSystem.getARC20TokenImage(itemAddress)
-              source: (img != "") ? "file:" + img : "qrc:/img/unknown_token.png"
+              imageSource: (img != "") ? "file:" + img : "qrc:/img/unknown_token.png"
             }
           }
         }
@@ -82,7 +78,7 @@ ListView {
         Text {
           id: delegateName
           anchors.verticalCenter: parent.verticalCenter
-          width: (parent.width * 0.3)
+          width: (parent.width * 0.7)
           x: delegateImage.width + delegateSymbol.width
           color: "white"
           font.pixelSize: 14.0
@@ -90,24 +86,13 @@ ListView {
           elide: Text.ElideRight
           text: itemName
         }
-        Text {
-          id: delegateBalance
-          anchors.verticalCenter: parent.verticalCenter
-          anchors.right: parent.right
-          anchors.rightMargin: (parent.width * 0.05)
-          width: (parent.width * 0.3)
-          color: "white"
-          font.pixelSize: 14.0
-          elide: Text.ElideRight
-          text: itemBalance
-        }
       }
       MouseArea {
         id: delegateMouseArea
         anchors.fill: parent
         onClicked: {
           tokenSelectList.currentIndex = index
-          grabFocus()
+          tokenSelectList.forceActiveFocus()
         }
       }
     }

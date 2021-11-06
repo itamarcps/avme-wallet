@@ -6,7 +6,7 @@
 
 QRegExp QmlSystem::createTxRegExp(int decimals) {
   QRegExp rx;
-  rx.setPattern("[0-9]{1,99}(?:\\.[0-9]{1," + QString::number(decimals) + "})?");
+  rx.setPattern("(?:[0-9]{1,})?(?:\\.[0-9]{1," + QString::number(decimals) + "})?");
   return rx;
 }
 
@@ -66,10 +66,20 @@ bool QmlSystem::hasInsufficientFunds(
   return (receiverU256 > senderU256);
 }
 
+void QmlSystem::updateAccountNonce(QString from) {
+  QtConcurrent::run([=](){
+    std::string ret;
+    std::string nonce = API::getNonce(from.toStdString());
+    auto nonceParsed = Pangolin::parseHex(nonce, {"uint"});
+    ret = nonceParsed[0];
+    emit this->accountNonceUpdate(QString::fromStdString(ret));
+  });
+}
+
 void QmlSystem::makeTransaction(
     QString operation, QString from, QString to,
     QString value, QString txData, QString gas,
-    QString gasPrice, QString pass
+    QString gasPrice, QString pass, QString txNonce, QString randomID
 ) {
   QtConcurrent::run([=](){
     // Convert everything to std::string for easier handling
@@ -81,6 +91,7 @@ void QmlSystem::makeTransaction(
     std::string gasStr = gas.toStdString();
     std::string gasPriceStr = gasPrice.toStdString();
     std::string passStr = pass.toStdString();
+    std::string txNonceStr = txNonce.toStdString();
 
     // Convert the values required for a transaction to their Wei formats.
     // Gas price is in Gwei (10^9 Wei) and amounts are in fixed point.
@@ -92,8 +103,8 @@ void QmlSystem::makeTransaction(
 
     // Build the transaction and data hex according to the operation
     TransactionSkeleton txSkel;
-    txSkel = w.buildTransaction(fromStr, toStr, valueStr, gasStr, gasPriceStr, txDataStr);
-    emit txBuilt(txSkel.nonce != Utils::MAX_U256_VALUE());
+    txSkel = w.buildTransaction(fromStr, toStr, valueStr, gasStr, gasPriceStr, txDataStr, txNonceStr);
+    emit txBuilt(txSkel.nonce != Utils::MAX_U256_VALUE(), randomID);
 
     // Sign the transaction
     bool signSuccess;
@@ -101,11 +112,11 @@ void QmlSystem::makeTransaction(
     std::string signedTx;
     if (QmlSystem::getLedgerFlag()) {
       std::pair<bool, std::string> signStatus;
-      emit ledgerRequired();
+      emit ledgerRequired(randomID);
       signStatus = this->ledgerDevice.signTransaction(
         txSkel, this->getCurrentHardwareAccountPath().toStdString()
       );
-      emit ledgerDone();
+      emit ledgerDone(randomID);
       signSuccess = signStatus.first;
       signedTx = (signSuccess) ? signStatus.second : "";
       msg = (signSuccess) ? "Transaction signed!" : signStatus.second;
@@ -114,29 +125,51 @@ void QmlSystem::makeTransaction(
       signSuccess = !signedTx.empty();
       msg = (signSuccess) ? "Transaction signed!" : "Error on signing transaction.";
     }
-    emit txSigned(signSuccess, QString::fromStdString(msg));
+    emit txSigned(signSuccess, QString::fromStdString(msg), randomID);
 
     // Send the transaction
-    std::string txLink = this->w.sendTransaction(signedTx, operationStr);
-    if (txLink.empty()) { emit txSent(false, ""); }
-    while (
-      txLink.find("Transaction nonce is too low") != std::string::npos ||
-      txLink.find("Transaction with the same hash was already imported") != std::string::npos
-    ) {
-      emit txRetry();
-      txSkel.nonce++;
-      if (QmlSystem::getLedgerFlag()) {
-        std::pair<bool, std::string> signStatus;
-        signStatus = this->ledgerDevice.signTransaction(
-          txSkel, this->w.getCurrentAccount().first
-        );
-        signSuccess = signStatus.first;
-        signedTx = (signSuccess) ? signStatus.second : "";
-      } else {
-        signedTx = this->w.signTransaction(txSkel, passStr);
-      }
-      txLink = this->w.sendTransaction(signedTx, operationStr);
+    json transactionResult = this->w.sendTransaction(signedTx, operationStr);
+    msg = "";
+    if (!transactionResult.contains("result")) {
+      // Error when trying to transmit a transaction
+      msg = transactionResult["error"]["message"] .get<std::string>();
+      emit txSent(false, "", "", QString::fromStdString(msg), randomID);
+    } else {
+      std::string txLink = std::string("https://snowtrace.io/tx/") + transactionResult["result"].get<std::string>();
+      emit txSent(true, QString::fromStdString(txLink), QString::fromStdString(transactionResult["result"]), QString::fromStdString(msg), randomID);
     }
-    emit txSent(true, QString::fromStdString(txLink));
+    // Confirming the transaction should happen OUTSIDE this function!
+  });
+}
+
+void QmlSystem::checkTransactionFor15s(QString txid, QString randomID) {
+  QtConcurrent::run([=](){
+    // Request current block and current transaction status for around 15 seconds
+    auto t_start = std::chrono::high_resolution_clock::now();
+    // Build the request data outside of the loop to avoid unecessary computing
+    Request transactionReceipt({1, "2.0", "eth_getTransactionReceipt", {txid.toStdString()}});
+    while (true) { // Use "break" to exit the function
+      auto t_end = std::chrono::high_resolution_clock::now();
+      double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end-t_start).count();
+      if (elapsed_time_ms > 15000) {
+        emit txConfirmed(false, txid, randomID);
+        break;
+      }
+
+      json result = json::parse(API::httpGetRequest(API::buildRequest(transactionReceipt)));
+      //std::cout << result.dump(2) << std::endl;
+      std::string status = "";
+
+      // Check if transaction was included in a block, a.k.a confirmed
+      if (result.contains("result")) {
+        if (result["result"].contains("status")) {
+          status = result["result"]["status"];
+        }
+      }
+      if (status != "") {
+        emit txConfirmed(true, txid, randomID);
+        break;
+      }
+    }
   });
 }

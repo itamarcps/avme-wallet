@@ -29,6 +29,7 @@ Popup {
   property alias index: ledgerAccountList.currentIndex
   property alias item: ledgerAccountList.currentItem
   property alias pathValue: ledgerPath.currentValue
+  property alias addressTimer: infoAddressTimer
   property color popupBgColor: "#1C2029"
 
   Connections {
@@ -40,6 +41,20 @@ Popup {
       }
       isWaiting = false
     }
+  }
+
+  Connections {
+    target: ledgerCustomPathPopup
+      function onAboutToHide() {
+        var pattern = /m\/((\d*)'?\/){1,10}/
+        if (pattern.test(ledgerCustomPathPopup.customPath)) {
+          var customPathJson = ([])
+          ledgerPath.model.append({ text: ledgerCustomPathPopup.customPath })
+          ledgerPath.currentIndex = ledgerPath.model.count - 1
+        } else {
+          invalidCustomPath.open()
+        }
+      }
   }
 
   function refreshList() {
@@ -55,10 +70,10 @@ Popup {
     chosenPath = ""
   }
 
-  width: window.width * 0.9
-  height: 700
-  x: (window.width * 0.1) / ((window.menuToggle) ? (width / 2) : 2)
-  y: (window.height * 0.5) - (height / 2)
+  width: (parent.width * 0.9)
+  height: (parent.height * 0.9)
+  x: (parent.width * 0.1) / 2
+  y: (parent.height * 0.5) - (height / 2)
   modal: true
   focus: true
   padding: 0  // Remove white borders
@@ -80,24 +95,39 @@ Popup {
       color: "#FFFFFF"
       font.pixelSize: 14.0
       text: {
-        if (isWaiting) {
+        if (infoAddressTimer.running) {
+          text: "Account is already in Wallet, please try another."
+        } else if (isWaiting) {
           text: "Generating Accounts..."
         } else {
           text: "Choose a derivation path:"
         }
       }
+      Timer { id: infoAddressTimer; interval: 2000 }
     }
-    ComboBox {
+    AVMECombobox {
       id: ledgerPath
       anchors.verticalCenter: infoLabel.verticalCenter
       width: 300
-      model: [
-        "m/44'/60'/0'/",
-        "m/44'/60'/0'/0/",
-        "m/44'/60'/160720'/0'/",
-        "m/44'/1'/0'/0/",
-        "m/44'/60'/0'/0/0/",
-      ]
+      editable: true
+      model: ListModel {
+        id: model
+        ListElement { text: "m/44'/60'/0'/0/" }
+        ListElement { text: "m/44'/60'/0'/" }
+        ListElement { text: "m/44'/60'/160720'/0'/" }
+        ListElement { text: "m/44'/1'/0'/0/" }
+        ListElement { text: "m/44'/60'/0'/0/0/" }
+      }
+      onActivated: {
+        qmlSystem.cleanLedgerAccounts()
+        accountList.clear()
+        startingIndex = -1
+      }
+    }
+    AVMEButton {
+      anchors.verticalCenter: infoLabel.verticalCenter
+      text: "Custom Path"
+      onClicked: ledgerCustomPathPopup.open()
     }
   }
 
@@ -109,7 +139,7 @@ Popup {
       right: parent.right
       margins: 20
     }
-    height: (parent.height * 0.8)
+    height: (parent.height * 0.75)
     radius: 5
     color: "#4458A0C9"
 
@@ -120,15 +150,13 @@ Popup {
     }
   }
 
-  Image {
+  AVMEAsyncImage {
     id: ledgerLoadingPng
-    visible: isWaiting
-    width: parent.height * 0.25
+    width: (parent.height * 0.25)
     height: width
-    anchors.horizontalCenter: parent.horizontalCenter
-    anchors.verticalCenter: parent.verticalCenter
-    fillMode: Image.PreserveAspectFit
-    source: "qrc:/img/icons/loading.png"
+    anchors.centerIn: parent
+    visible: isWaiting
+    imageSource: "qrc:/img/icons/loading.png"
     RotationAnimator {
       target: ledgerLoadingPng
       from: 0
@@ -165,7 +193,14 @@ Popup {
       enabled: (!isWaiting && ledgerAccountList.currentIndex > -1)
       text: "Choose this Account"
       onClicked: {
-        qmlSystem.importLedgerAccount(ledgerList.currentItem.itemAccount, ledgerPopup.pathValue + ledgerPopup.index);
+        if (qmlSystem.ledgerAccountExists(ledgerList.currentItem.itemAccount)) {
+          addressTimer.start()
+        } else {
+          qmlSystem.importLedgerAccount(
+            ledgerList.currentItem.itemAccount,
+            ledgerPopup.pathValue + ledgerPopup.index
+          );
+        }
       }
     }
     AVMEButton {

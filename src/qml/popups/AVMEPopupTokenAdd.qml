@@ -10,17 +10,14 @@ import "qrc:/qml/components"
 AVMEPopup {
   id: addTokenPopup
 
-  onAboutToShow: addressInput.focus = true
-
-  function clean() {
-    addressInput.text = ""
-  }
+  onAboutToShow: addressInput.forceActiveFocus()
+  onAboutToHide: addressInput.text = ""
 
   Column {
     id: items
     width: parent.width
     anchors.verticalCenter: parent.verticalCenter
-    spacing: 30
+    spacing: 20
 
     // Enter/Return key override
     Keys.onPressed: {
@@ -76,7 +73,6 @@ AVMEPopup {
             tokenData.decimals, tokenData.avaxPairContract
           )
           qmlSystem.downloadARC20TokenImage(tokenData.address)
-          addTokenPopup.clean()
           addTokenPopup.close()
         }
       }

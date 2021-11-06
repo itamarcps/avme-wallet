@@ -11,28 +11,56 @@ import QmlApi 1.0
 // Popup for confirming a transaction with user input.
 AVMEPopup {
   id: confirmTxPopup
-  widthPct: 0.6
+  widthPct: 0.7
   heightPct: 0.6
   property string info
   property string fullInfo: info
-    + "<br>Gas Limit: <b> " + gas + " AVAX</b>"
+    + "<br>Gas Limit: <b> " + gas + "</b>"
     + "<br>Gas Price: <b>" + gasPrice + "</b>"
+    + "<br>Fee Cost: <b>"
+    + qmlApi.weiToFixedPoint(qmlApi.mul(qmlApi.fixedPointToWei(gasPrice, 9),gas),18)
+    + " AVAX</b>"
   property alias pass: passInput.text
   property alias passFocus: passInput.focus
   property alias timer: infoTimer
   property alias okBtn: btnOk
-  property string from: qmlSystem.getCurrentAccount()
+  property alias backBtn: btnBack
+  property string from
   property string operation // For usage under history
   property string to
   property string value // Not WEI value!
   property string txData
-  property string gas // gasLimit
-  property string gasPrice // GWEI value, dynamic
+  property string gas: "0" // gasLimit // Initialize value to not throw bad_lexical_cast when starting the wallet
+  property string gasPrice: "0" // GWEI value, dynamic
   property string randomID: ""
+  property string failReason: ""
   property bool loadingFees
   property bool automaticGas
   property bool isSameAddress: false
-  onAboutToShow: passInput.focus = true
+
+  onAboutToShow: {
+    if (qmlSystem.getLedgerFlag()) {  // Ledger doesn't need password
+      passInfo.visible = passInput.visible = false
+      btnOk.enabled = true  // This "workaround" is done due to a confirmTx component
+                            // being located on accountHeader
+                            // Which is loaded on the wallet
+                            // Setting itself enabled to be always the second condition of the
+                            // ternary operator.
+    } else {
+      if (+qmlSystem.getConfigValue("storePass") > 0) { // Set to store pass
+        passInput.text = qmlSystem.retrievePass()
+        if (passInput.text == "") { // Pass wasn't stored (first time)
+          passInfo.visible = passInput.visible = true
+          passInput.forceActiveFocus()
+        } else {  // Pass was stored
+          passInfo.visible = passInput.visible = false
+        }
+      } else {  // NOT set to store pass
+        passInfo.visible = passInput.visible = true
+        passInput.forceActiveFocus()
+      }
+    }
+  }
   onAboutToHide: confirmTxPopup.clean()
 
   Timer { id: ledgerRetryTimer; interval: 125; onTriggered: checkLedger() }
@@ -49,14 +77,15 @@ AVMEPopup {
         txStructure["value"] = value
         txStructure["txData"] = txData
         txStructure["gas"] = gas
-        txStructure["gasPrice"] = gasPrice 
-        txStructure["API ANSWER"] = answer 
+        txStructure["gasPrice"] = gasPrice
+        txStructure["API ANSWER"] = answer
         qmlApi.logToDebug(JSON.stringify(txStructure))
-        
+
         if (!answerJson[0]["result"]) {
           if (answerJson[0]["error"]["message"].includes("max fee per gas less than block base fee")) {
             calculateGas(true)
           } else {
+            failReason = answerJson[0]["error"]["message"];
             transactionFailPopup.open();
             loadingFees = false
           }
@@ -84,9 +113,9 @@ AVMEPopup {
       var Params = ({})
       Params["from"] = from
       Params["to"] = to
-      Params["gas"] = "0x" + qmlApi.uintToHex(gas)
-      Params["gasPrice"] = "0x" + qmlApi.uintToHex(qmlApi.fixedPointToWei(gasPrice, 9))
-      Params["value"] = "0x" + qmlApi.uintToHex(qmlApi.fixedPointToWei(value, 18))
+      Params["gas"] = "0x" + qmlApi.uintToHex(gas, false)
+      Params["gasPrice"] = "0x" + qmlApi.uintToHex(qmlApi.fixedPointToWei(gasPrice, 9), false)
+      Params["value"] = "0x" + qmlApi.uintToHex(qmlApi.fixedPointToWei(value, 18), false)
       Params["data"] = txData
       qmlApi.buildGetEstimateGasLimitReq(JSON.stringify(Params), "PopupConfirmTxGas_"+randomID)
       qmlApi.doAPIRequests("PopupConfirmTxGas_"+randomID)
@@ -95,6 +124,7 @@ AVMEPopup {
   }
 
   function setData(inputTo, inputValue, inputTxData, inputGas, inputGasPrice, inputAutomaticGas, inputInfo, inputHistoryInfo) {
+    from = qmlSystem.getCurrentAccount()
     to = inputTo
     value = inputValue
     txData = inputTxData
@@ -131,6 +161,13 @@ AVMEPopup {
     anchors.centerIn: parent
     spacing: 20
 
+    // Enter/Numpad enter key override
+    Keys.onPressed: {
+      if ((event.key == Qt.Key_Return) || (event.key == Qt.Key_Enter)) {
+        if (btnOk.enabled) { btnOk.handleConfirm() }
+      }
+    }
+
     Text {
       id: warningText
       anchors.horizontalCenter: parent.horizontalCenter
@@ -152,14 +189,13 @@ AVMEPopup {
       text: fullInfo
     }
 
-    Image {
+    AVMEAsyncImage {
       id: loadingPng
-      height: 50
       width: 50
+      height: 50
       anchors.horizontalCenter: parent.horizontalCenter
-      fillMode: Image.PreserveAspectFit
       visible: loadingFees
-      source: "qrc:/img/icons/loading.png"
+      imageSource: "qrc:/img/icons/loading.png"
       RotationAnimator {
         target: loadingPng
         from: 0
@@ -173,7 +209,6 @@ AVMEPopup {
 
     Text {
       id: passInfo
-      visible: (qmlSystem.getLedgerFlag()) ? false : true
       anchors.horizontalCenter: parent.horizontalCenter
       horizontalAlignment: Text.AlignHCenter
       color: "#FFFFFF"
@@ -186,7 +221,6 @@ AVMEPopup {
 
     AVMEInput {
       id: passInput
-      visible: (qmlSystem.getLedgerFlag()) ? false : true
       anchors.horizontalCenter: parent.horizontalCenter
       width: confirmTxPopup.width / 2
       echoMode: TextInput.Password
@@ -205,23 +239,29 @@ AVMEPopup {
         text: "Back"
         onClicked: confirmTxPopup.close()
       }
+
       AVMEButton {
         id: btnOk
-        text: "OK"
+        text: "Ok"
         enabled: (qmlSystem.getLedgerFlag()) ? true : (passInput.text !== "" && !loadingFees)
-        onClicked: {
+        onClicked: handleConfirm()
+        function handleConfirm() {
           if (!qmlSystem.checkWalletPass(passInput.text) && !qmlSystem.getLedgerFlag()) {
             infoTimer.start()
           } else {
-            // You have to provide the information before closing the popup
-            // Otherwise, the passInput.text will be equal to ""
-            qmlSystem.txStart(
-              operation, from, to, value, txData, gas, gasPrice, passInput.text
+            // Store the password in memory if prompted by the user and not stored yet
+            if (+qmlSystem.getConfigValue("storePass") > 0 && qmlSystem.retrievePass() == "") {
+              qmlSystem.storePass(passInput.text)
+            }
+            // txStart needs to happen before close, otherwise the password input
+            // will be cleaned before being used to start the transaction
+            txProgressPopup.txStart(
+              operation, from, to, value, txData, gas, gasPrice, passInput.text, randomID
             )
             confirmTxPopup.close()
             txProgressPopup.open()
           }
-        }// TODO: ADD A ERROR HANDLER FOR INSUFICIENT BALANCE!!!
+        } // TODO: add an error handler for insufficient balance (edge case)
       }
     }
   }
@@ -229,6 +269,8 @@ AVMEPopup {
   // Info popup for if communication with Ledger fails
   AVMEPopupInfo {
     id: ledgerFailPopup
+    widthPct: 0.6
+    heightPct: 0.4
     icon: "qrc:/img/warn.png"
     onAboutToHide: ledgerRetryTimer.stop()
     okBtn.text: "Close"
@@ -236,8 +278,31 @@ AVMEPopup {
 
   AVMEPopupInfo {
     id: transactionFailPopup
+    widthPct: 0.8
+    heightPct: 0.8
     icon: "qrc:/img/warn.png"
-    info: "Transaction Likely to fail, please check your input"
+    info: "Transaction likely to fail,<br>please check your input."
+    Rectangle {
+	  color: "#0f0c18"
+      anchors.verticalCenter: parent.verticalCenter
+	  anchors.horizontalCenter: parent.horizontalCenter
+      radius: 5
+      width: parent.width * 0.8
+      height: parent.height * 0.33
+	  Text {
+	  	id: failedTransactionText
+		anchors.verticalCenter: parent.verticalCenter
+		anchors.horizontalCenter: parent.horizontalCenter
+		height: parent.height * 0.9
+		width: parent.width * 0.9
+		text: "Reason: " + failReason
+		horizontalAlignment: Text.AlignHCenter 
+		verticalAlignment: Text.AlignVCenter 
+      	color: "#FFFFFF"
+      	font.pixelSize: 12.0
+		wrapMode: Text.Wrap
+	  }
+    }
     okBtn.text: "Close"
   }
 }

@@ -130,7 +130,6 @@ void QmlSystem::createAccount(QString seed, int index, QString name, QString pas
 
 void QmlSystem::importLedgerAccount(QString address, QString path) {
   QVariantMap obj;
-  // TODO: avoid same account to be imported multiple times
   bool success = this->w.importLedgerAccount(address.toStdString(), path.toStdString());
   if (!success) {
     emit accountCreated(false, obj);
@@ -150,6 +149,10 @@ bool QmlSystem::eraseAccount(QString account) {
 
 bool QmlSystem::accountExists(QString account) {
   return this->w.accountExists(account.toStdString());
+}
+
+bool QmlSystem::ledgerAccountExists(QString account) {
+  return this->w.ledgerAccountExists(account.toStdString());
 }
 
 QString QmlSystem::getPrivateKeys(QString account, QString pass) {
@@ -238,6 +241,7 @@ void QmlSystem::getAllAVAXBalances(QStringList addresses) {
 
 void QmlSystem::getAccountAllBalances(QString address) {
   QtConcurrent::run([=](){
+    this->updateAccountNonce(address);
     try {
       json tokensInformation = json::array();
       json coinInformation;
@@ -271,7 +275,6 @@ void QmlSystem::getAccountAllBalances(QString address) {
       json resultArr = json::parse(resp);
       // Request the prices of all the tokens to the GraphQL API
       auto tokensPrices = Graph::getAccountPrices(tokenList);
-
       bigfloat avaxUSDPrice = boost::lexical_cast<bigfloat>(Graph::parseAVAXPriceUSD(tokensPrices));
       // Calculate the fiat value for each token
       for (auto id : idList) {
@@ -286,7 +289,12 @@ void QmlSystem::getAccountAllBalances(QString address) {
             }
             // Due to GraphQL limitations, we need convert everything to lowercase
             id.second = Utils::toLowerCaseAddress(id.second);
-            std::string tokenDerivedPriceStr = tokensPrices["data"][id.second]["derivedETH"].get<std::string>();
+            std::string tokenDerivedPriceStr;
+            if (tokensPrices["data"][id.second].type() != json::value_t::null) {
+              tokenDerivedPriceStr = tokensPrices["data"][id.second]["derivedETH"].get<std::string>();
+            } else {
+              tokenDerivedPriceStr = "0";
+            }
             bigfloat tokenDerivedPrice = boost::lexical_cast<bigfloat>(tokenDerivedPriceStr);
             std::string hexBal = balance["result"].get<std::string>();
             u256 tokenWeiBal = boost::lexical_cast<HexTo<u256>>(hexBal);
@@ -295,7 +303,6 @@ void QmlSystem::getAccountAllBalances(QString address) {
             ));
             bigfloat tokenUSDPrice = tokenDerivedPrice * avaxUSDPrice;
             bigfloat tokenUSDValueFloat = (tokenDerivedPrice * avaxUSDPrice) * tokenBal;
-            std::string coinWorth = boost::lexical_cast<std::string>(tokenDerivedPrice * tokenBal);
             std::stringstream ss;
             ss << std::setprecision(2) << std::fixed << tokenUSDValueFloat;
             std::string tokenUSDValue = ss.str();
@@ -315,7 +322,6 @@ void QmlSystem::getAccountAllBalances(QString address) {
             tokenInformation["tokenRawBalance"] = tokenBalStr;
             tokenInformation["tokenFiatValue"] = tokenUSDValue;
             tokenInformation["tokenDerivedValue"] = tokenDerivedPriceStr;
-            tokenInformation["coinWorth"] = coinWorth;
             tokenInformation["tokenChartData"] = tokenChartData;
             tokenInformation["tokenUSDPrice"] = boost::lexical_cast<std::string>(tokenUSDPrice);
             tokensInformation.push_back(tokenInformation);
@@ -363,14 +369,11 @@ void QmlSystem::getAccountAllBalances(QString address) {
   });
 }
 
-bool QmlSystem::loadTokenDB() {
-  return this->w.loadTokenDB();
-}
-
+bool QmlSystem::loadTokenDB() { return this->w.loadTokenDB(); }
 bool QmlSystem::loadHistoryDB(QString address) {
   return this->w.loadHistoryDB(address.toStdString());
 }
+bool QmlSystem::loadLedgerDB() { return this->w.loadLedgerDB(); }
+bool QmlSystem::loadAppDB() { return this->w.loadAppDB(); }
+bool QmlSystem::loadAddressDB() { return this->w.loadAddressDB(); }
 
-bool QmlSystem::loadLedgerDB() {
-  return this->w.loadLedgerDB();
-}
