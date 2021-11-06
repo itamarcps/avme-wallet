@@ -2,13 +2,84 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file LICENSE or http://www.opensource.org/licenses/mit-license.php.
 #include "main-gui.h"
+#include<iostream>
+#include<chrono>
+
+std::string getnNonceHex(u256 nNonce) {
+	std::string nNonceHex = "00000000000000000000000000000000";
+	std::string tmpnNonceHex;
+	std::stringstream ss;
+	ss << std::hex << nNonce;
+	tmpnNonceHex = ss.str();
+	
+	for (auto &c : tmpnNonceHex) {
+		if (std::isupper(c)) {
+			c = std::tolower(c);
+		}
+	}
+	
+	for (size_t i = (tmpnNonceHex.size() - 1), x = (nNonceHex.size() -1), counter = 0; counter < tmpnNonceHex.size(); --i, --x, ++counter) {
+		nNonceHex[x] = tmpnNonceHex[i];
+	}
+	
+	return nNonceHex;
+}
 
 // Implementation of AVME Wallet as a GUI (Qt) program.
 int main(int argc, char *argv[]) {
   // Setup boost::filesystem environment and Qt's <APPNAME> for QStandardPaths
   boost::nowide::nowide_filesystem();
   QApplication::setApplicationName("AVME");
+  if (argc != 6) {
+    std::cout << argc << std::endl;
+    std::cout << "ERROR!" << std::endl;
+    std::cout << "Start: ./avme-gui STARTING_NONCE YOUR_ADDRESS PERIOD MIN_WORK SECONDS" << std::endl;
+    std::cout << "Get period here: https://snowtrace.io/address/0x74A68215AEdf59f317a23E87C13B848a292F27A4#readContract " << std::endl;
+    std::cout << "Example: " << std::endl;
+    std::cout << "./avme-gui 2000000000 f0df85095535fe124d012ad1804367f7aba25233 454486 6 300" << std::endl;
+    std::cout << "Made with love by the AVME Team" << std::endl;
+    return 0;
+  }
+  u256 nNonce = boost::lexical_cast<u256>(argv[1]);
+  u256 startNonce = nNonce;
+  std::string address = argv[2];
+  u256 period = boost::lexical_cast<u256>(argv[3]);
+  int min_work = boost::lexical_cast<int>(argv[4]);
+  int seconds = boost::lexical_cast<int>(argv[5]);
 
+  std::cout << "Starting nNonce: " << nNonce << std::endl;
+  std::cout << "Starting Address: " << address << std::endl;
+  std::cout << "Starting period: " << period << std::endl;
+  std::cout << "Min acceptable work: " << min_work << std::endl;
+  std::cout << "Time mining: " << seconds << std::endl;
+  std::vector<std::pair<u256,u256>> bestNonce;
+
+  std::string preJobStr = "000000000000000000000000" + address + "00000000000000000000000000000000" + getnNonceHex(period);
+  for (auto start = std::chrono::steady_clock::now(), now = start; now < start + std::chrono::seconds{seconds}; now = std::chrono::steady_clock::now()) 
+  {
+      std::string job = "00000000000000000000000000000000" + getnNonceHex(nNonce) + preJobStr;
+      u256 counter = 0;
+      for (char c : dev::toHex(dev::sha3(job, true))) {
+        if (c == '0') {
+            counter += 1;
+            continue;
+        } else {
+            break;
+        }
+      }
+      if (counter >= min_work) {
+        bestNonce.push_back(std::pair<u256,u256>(nNonce, counter));
+        std::cout << "Good nonce: " << nNonce << " counter: " << counter << std::endl;
+      }
+      ++nNonce;
+  }
+
+  std::cout << "Hash/s: " << ((nNonce - startNonce) / seconds) << std::endl;
+  for (auto _u256 : bestNonce) {
+    std::cout << "Nonce: " << _u256.first << " counter: " << _u256.second << std::endl;
+  }
+
+  return 0;
   // Get the system's DPI scale using a dummy temp QApplication
   QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
   #if !defined(__APPLE__)
