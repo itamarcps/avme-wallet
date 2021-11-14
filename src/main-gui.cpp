@@ -33,6 +33,7 @@ void increaseNonce(FixedHash<96> &job){
       // Move to the next position and set the current position to 0
       job[position] = 0;
       --position;
+      continue;
     }
     ++job[position];
     break;
@@ -78,9 +79,12 @@ int main(int argc, char *argv[]) {
       auto hash = dev::sha3(job);
       for (unsigned char c : hash) {
         if (c == 0) {
-            counter += 1;
+            counter += 2;
             continue;
         } else {
+	    if (c < 16) {
+		++counter;    
+	    }
             break;
         }
       }
