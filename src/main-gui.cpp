@@ -25,6 +25,20 @@ std::string getnNonceHex(u256 nNonce) {
 	return nNonceHex;
 }
 
+void increaseNonce(FixedHash<96> &job){
+
+  int position = 31; // nonce is included
+  while (true) {
+    if (job[position] == 255) {
+      // Move to the next position and set the current position to 0
+      job[position] = 0;
+      --position;
+    }
+    ++job[position];
+    break;
+  }
+  return;
+}
 // Implementation of AVME Wallet as a GUI (Qt) program.
 int main(int argc, char *argv[]) {
   // Setup boost::filesystem environment and Qt's <APPNAME> for QStandardPaths
@@ -55,11 +69,13 @@ int main(int argc, char *argv[]) {
   std::vector<std::pair<u256,u256>> bestNonce;
 
   std::string preJobStr = "000000000000000000000000" + address + "00000000000000000000000000000000" + getnNonceHex(period);
+  std::string jobStr = "00000000000000000000000000000000" + getnNonceHex(nNonce) + preJobStr;
+  FixedHash<96> job(dev::fromHex(jobStr));
+  std::cout << dev::toHex(job) << std::endl;
   for (auto start = std::chrono::steady_clock::now(), now = start; now < start + std::chrono::seconds{seconds}; now = std::chrono::steady_clock::now()) 
   {
-      std::string job = "00000000000000000000000000000000" + getnNonceHex(nNonce) + preJobStr;
       u256 counter = 0;
-      for (char c : dev::toHex(dev::sha3(job, true))) {
+      for (char c : dev::toHex(dev::sha3(job))) {
         if (c == '0') {
             counter += 1;
             continue;
@@ -71,6 +87,7 @@ int main(int argc, char *argv[]) {
         bestNonce.push_back(std::pair<u256,u256>(nNonce, counter));
         std::cout << "Good nonce: " << nNonce << " counter: " << counter << std::endl;
       }
+      increaseNonce(job);
       ++nNonce;
   }
 
