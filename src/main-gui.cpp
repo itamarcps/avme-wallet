@@ -75,8 +75,9 @@ int main(int argc, char *argv[]) {
   for (auto start = std::chrono::steady_clock::now(), now = start; now < start + std::chrono::seconds{seconds}; now = std::chrono::steady_clock::now()) 
   {
       u256 counter = 0;
-      for (char c : dev::toHex(dev::sha3(job))) {
-        if (c == '0') {
+      auto hash = dev::sha3(job);
+      for (unsigned char c : hash) {
+        if (c == 0) {
             counter += 1;
             continue;
         } else {
