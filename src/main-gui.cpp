@@ -25,9 +25,8 @@ std::string getnNonceHex(u256 nNonce) {
 	return nNonceHex;
 }
 
-void increaseNonce(FixedHash<96> &job){
-
-  int position = 31; // nonce is included
+void increaseNonce(FixedHash<224> &job){
+  int position = 63;
   while (true) {
     if (job[position] == 255) {
       // Move to the next position and set the current position to 0
@@ -45,22 +44,28 @@ int main(int argc, char *argv[]) {
   // Setup boost::filesystem environment and Qt's <APPNAME> for QStandardPaths
   boost::nowide::nowide_filesystem();
   QApplication::setApplicationName("AVME");
-  if (argc != 6) {
+  if (argc != 8) {
     std::cout << argc << std::endl;
     std::cout << "ERROR!" << std::endl;
-    std::cout << "Start: ./avme-gui STARTING_NONCE YOUR_ADDRESS PERIOD MIN_WORK SECONDS" << std::endl;
+    std::cout << "Start: ./avme-gui TYPE BLOCK_HASH STARTING_NONCE YOUR_ADDRESS PERIOD MIN_WORK SECONDS" << std::endl;
     std::cout << "Get period here: https://snowtrace.io/address/0x74A68215AEdf59f317a23E87C13B848a292F27A4#readContract " << std::endl;
     std::cout << "Example: " << std::endl;
-    std::cout << "./avme-gui 2000000000 f0df85095535fe124d012ad1804367f7aba25233 454486 6 300" << std::endl;
+    std::cout << "./avme-gui XPOW.CPU 1b221d2b75a9a7242731b7faec1e06402986cff4f9147cc548ee964bb6df7435 2000000000 f0df85095535fe124d012ad1804367f7aba25233 454486 6 300" << std::endl;
+    std::cout << "Types: " << std::endl;
+    std::cout << "XPOW.CPU" << std::endl;
+    std::cout << "XPOW.GPU" << std::endl;
+    std::cout << "XPOW.ASIC" << std::endl;
     std::cout << "Made with love by the AVME Team" << std::endl;
     return 0;
   }
-  u256 nNonce = boost::lexical_cast<u256>(argv[1]);
+  std::string xpowType = argv[1];
+  std::string blockhash = argv[2];
+  u256 nNonce = boost::lexical_cast<u256>(argv[3]);
   u256 startNonce = nNonce;
-  std::string address = argv[2];
-  u256 period = boost::lexical_cast<u256>(argv[3]);
-  int min_work = boost::lexical_cast<int>(argv[4]);
-  int seconds = boost::lexical_cast<int>(argv[5]);
+  std::string address = argv[4];
+  u256 period = boost::lexical_cast<u256>(argv[5]);
+  int min_work = boost::lexical_cast<int>(argv[6]);
+  int seconds = boost::lexical_cast<int>(argv[7]);
 
   std::cout << "Starting nNonce: " << nNonce << std::endl;
   std::cout << "Starting Address: " << address << std::endl;
@@ -69,23 +74,49 @@ int main(int argc, char *argv[]) {
   std::cout << "Time mining: " << seconds << std::endl;
   std::vector<std::pair<u256,u256>> bestNonce;
 
-  std::string preJobStr = "000000000000000000000000" + address + "00000000000000000000000000000000" + getnNonceHex(period);
-  std::string jobStr = "00000000000000000000000000000000" + getnNonceHex(nNonce) + preJobStr;
-  FixedHash<96> job(dev::fromHex(jobStr));
-  std::cout << dev::toHex(job) << std::endl;
+/*    function _hash(
+        uint256 nonce,
+        address sender,
+        uint256 interval,
+        bytes32 blockHash
+    ) internal pure override returns (bytes32) {
+        return keccak256(abi.encode("XPOW.CPU", nonce, sender, interval, blockHash));
+    }
+*/
+  json jobJson;
+
+  jobJson["function"] = "SkipFirst8Bytes";
+  json jobJsonArgs = json::array();
+  jobJsonArgs.push_back(boost::lexical_cast<std::string>(xpowType));
+  jobJsonArgs.push_back(boost::lexical_cast<std::string>(nNonce));
+  jobJsonArgs.push_back("0x" + address);
+  jobJsonArgs.push_back(boost::lexical_cast<std::string>(period));
+  jobJsonArgs.push_back(blockhash);
+  jobJson["args"] = jobJsonArgs;
+  json jobJsonTypes = json::array();
+  jobJsonTypes.push_back("string");
+  jobJsonTypes.push_back("uint*");
+  jobJsonTypes.push_back("address");
+  jobJsonTypes.push_back("uint*");
+  jobJsonTypes.push_back("address"); // That is a workaround to encode the raw bytes instead.
+  jobJson["types"] = jobJsonTypes;
+
+  std::string jobStr = ABI::encodeABIfromJson(jobJson.dump());
+  jobStr.erase(0,10); // Erase the first 10 characters, they are ignored.
+  FixedHash<224> job(dev::fromHex(jobStr));
   for (auto start = std::chrono::steady_clock::now(), now = start; now < start + std::chrono::seconds{seconds}; now = std::chrono::steady_clock::now()) 
   {
       u256 counter = 0;
       auto hash = dev::sha3(job);
       for (unsigned char c : hash) {
         if (c == 0) {
-            counter += 2;
-            continue;
+          counter += 2;
+          continue;
         } else {
-	    if (c < 16) {
-		++counter;    
-	    }
-            break;
+          if (c < 16) {
+	        	++counter;    
+	        }
+          break;
         }
       }
       if (counter >= min_work) {
